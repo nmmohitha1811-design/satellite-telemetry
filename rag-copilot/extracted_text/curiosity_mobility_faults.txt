@@ -1,0 +1,1425 @@
+Mars Curiosity Rover Mobility Trends During the First Seven
+Years
+Arturo Rankin∗ †, Mark Maimone, Jeffrey Biesiadecki, Nikunj Patel,
+Dan Levine, Olivier Toupet
+Jet Propulsion Laboratory, California Institute of Technology
+Pasadena, CA 91109
+Arturo.Rankin@jpl.nasa.gov
+Abstract
+NASA’s Mars Science Laboratory (MSL) Curiosity rover landed on Mars on August 6, 2012. In the
+seven years between landing and August 6, 2019 (sol 2488), Curiosity has driven 21,318.5 meters
+over a variety of terrain types and slopes, employing multiple drive modes with varying amounts
+of onboard autonomy. Curiosity’s drive distances each sol have ranged from its shortest drive of
+2.6 centimeters to its longest drive of 142.5 meters, with an average drive distance of 28.9 me-
+ters. Real-time human intervention is not possible during Curiosity’s drives due to the latency in
+uplinking commands and downlinking telemetry. Instead, the operations team relies on Curiosity’s
+fault protection, Autonomous Navigation, and Visual Odometry software to keep the rover safe dur-
+ing drives. During its ﬁrst seven years on Mars, Curiosity has attempted 738 drives. While 622
+drives ran to completion, 116 drives were prevented or stopped early by Curiosity’s fault protection
+software. The primary risks to mobility success have been wheel damage, wheel entrapment, pro-
+gressive wheel sinkage, and the potential for hardware or cable failures that result in an inability to
+command one or more steer or drive actuators. In this paper, we describe Curiosity’s mobility sub-
+system, mobility trends over the ﬁrst 21.3 km of the mission, operational aspects of mobility fault
+protection, risks to continued mobility success, and risk mitigation strategies.
+1 Introduction
+On August 6, 2012, the NASA Mars Science Laboratory (MSL) Curiosity rover landed on Mars and began the surface
+phase of its mission. Seventeen Martian solar days (sols) later, Curiosity executed its ﬁrst drive of 7.005 meters.
+Curiosity was designed to survive at least one Mars year (approximately 23 Earth months) and drive at least 20 km.
+August 6, 2019 (sol 2488) marked the seven-year anniversary of the landing of Curiosity on Mars. Curiosity has driven
+21,318.5 meters over those years, exceeding the 20 km design goal. Thus far, Curiosity has achieved 47.2% of the
+total odometry achieved by the solar-powered Mars Exploration Rover (MER) Opportunity, which holds the record
+for off-Earth wheeled vehicle odometry at 45.16 km, achieved over its 14.375 years of operation between January 25,
+2004 and June 12, 2018. MSL’s mobility-related mission peak records are shown in Table 1.
+The goal of the MSL mission is to explore and quantitatively assess the habitability and environmental history of the
+Gale crater ﬁeld site, which includes the landing ellipse and the adjacent lower portion of Mount Sharp (Grotzinger
+et al., 2012). Figure 1 shows the route that Curiosity has driven since it arrived at the Bradbury Landing site. On
+sol 2481, Curiosity arrived at Glen Etive, its location at the seven-year anniversary of its landing. Curiosity remained
+∗https://www-robotics.jpl.nasa.gov/people/Arturo_Rankin
+†Copyright 2020 California Institute of Technology. U.S. Government sponsorship acknowledged.
+parked at Glen Etive until sol 2555 during a drill sampling campaign. Figure 2 contains a selﬁe of Curiosity at Glen
+Etive, generated from dozens of images acquired by the Mars Hand Lens Imager (MAHLI) mounted to the robotic
+arm turret.
+Figure 1: This map shows the route driven by NASA’s Curiosity Mars rover, from its August 2012 landing through
+August 2019. The blue star near the top center marks ”Bradbury Landing,” the site where Curiosity arrived on Mars
+on August 5, 2012, PDT (August 6, EDT and Universal Time). Curiosity landed on Aeolis Palus, the plains surround-
+ing Aeolis Mons (Mount Sharp) in Gale Crater. The base image for the map is from the High Resolution Imaging
+Science Experiment (HiRISE) camera on the Mars Reconnaissance Orbiter. Image Credit: NASA/JPL-Caltech/Univ.
+of Arizona.
+As illustrated in Figure 3, much of the driving to the lower layers of Mount Sharp has been uphill. As of sol 2488,
+60.75% of Curiosity’s driving has been uphill, resulting in a total increase in elevation of 418.4 meters. During the
+MER mission, the maximum increase in elevation by Opportunity was 347.6 meters, which occurred on sol 4663.
+Comparing cumulative odometry and change in elevation for Curiosity and Opportunity at the seven year mark for
+each mission, Opportunity had driven 5.34 km further, but Curiosity has climbed 277.3 meters higher. Mobility
+choices are guided by each mission’s long term strategic science plan, but are subject to changes due to near term
+science objectives and engineering constraints arising from terrain features not evident from orbital planning images.
+Curiosity has driven over a variety of terrain types and slopes, employing multiple drive modes with varying amounts of
+onboard autonomy including Visual Odometry (VO), Hazard Detection, Hazard Avoidance, and Visual Target Tracking
+(VTT). Real-time human intervention during Curiosity drives is not possible due to the latency in uplinking commands
+and downlinking telemetry. The inherent delay in radio communications due to the distance between Mars and Earth
+can vary from 8 to 21 minutes each way depending on their orbital conﬁguration, and the use of Mars orbiters to relay
+Figure 2: Curiosity selﬁe image acquired on October 11, 2019 (sol 2553) at Glen Etive, where Curiosity drilled
+two holes. This selﬁe was generated by stitching together 57 individual images acquired by the MAHLI, a camera
+on the robotic arm turret. The robotic arm, which acts as a selﬁe stick, is not visible in the image. The Remote
+Sensing Mast, which contains navigation cameras, is mounted to the right side of Curiosity. Image Credit: NASA/JPL-
+Caltech/MSSS.
+information at higher bandwidths can introduce further latency. So the MSL operations team relies on Curiosity’s fault
+protection software to prevent the rover from driving into an unsafe state during drives. When fault protection software
+detects or predicts a state unsafe for driving, an error is declared which halts the rover and prevents future driving. The
+thresholds for tripping fault protection are parameters that are set by human Rover Planners (RPs) for each drive or
+drive segment, based on high-resolution imagery of the path ahead and review of recent drive performance in nearby
+terrain.
+During Curiosity’s ﬁrst seven years on Mars, 738 drives planned by the MSL operations team were successfully
+uplinked to Curiosity; 622 of those drives successfully completed with the rover reaching its goal position. Of the 116
+drives that did not run to completion, 53 were terminated early due to 8 types of system fault protection unrelated to
+mobility, and 63 were terminated early by 16 types of mobility fault protection. Despite 15.7% of its attempted drives
+terminating early, Curiosity has achieved 91.7% of its attempted odometry.
+Driving through unknown terrain can present challenges to the operations team. Curiosity has experienced a signiﬁ-
+cant amount of wheel damage to the left front and middle wheels, and in response, a software patch was installed on
+Curiosity to perform terrain-adaptive wheel speed control (TRCTL). Other risks to continued mobility success include:
+reductions in available power that may limit drive time, unsafe terrain that may limit drive distance, a drive or steer ac-
+tuator hardware failure, a computer or engineering camera (ECAM) failure, wheel sinkage, driving under an unknown
+unsafe condition, wheel entrapment, a rock wedged between two wheels, rover tip over, rover high centering, suspen-
+sion hardware failure, mobility heater or thermometer failure, hardware failure of the rover inertial measurement unit
+(IMU), and loss of calibration of a camera used for wheel slip and/or terrain hazard assessment.
+In this paper, we describe Curiosity’s mobility system, VO performance, commandable drive modes, mobility fault
+protection, drive and steer actuator health, wheel health, risks to continued mobility success for the remainder of the
+mission, and risk mitigations. We will use VO to refer to the vision-based system for determining accurate position
+information, Wheel Odometry to refer to position estimates updated at 8 Hz while in motion that assume no slip, and
+just “odometry” to refer to overall distance covered while driving, regardless of whether VO was explicitly enabled.
+An earlier version of this paper appeared as (Rankin et al., 2020).
+Figure 3: Change in rover elevation for Curiosity over the ﬁrst seven years of its mission, and Opportunity over its
+14.375 year mission. A Mars solar day (sol) is approximately 39 minutes and 35 seconds longer than the 24 hour Earth
+day.
+2 Mobility System
+Curiosity’s mobility system consists of the wheels, drive and steer actuators and encoders, suspension, IMU, and
+the ﬂight software related to mobility and navigation of the rover (which also makes use of ECAMs for terrain
+understanding and VO measurements). Curiosity’s IMU contains three ﬁber-optic gyros and three silicon micro-
+electromechanical system accelerometers. The ECAMs consist of two stereo pairs of navigation cameras (NavCams)
+on the Remote Sensing Mast (RSM), which is mounted to the the right side of the rover, two stereo pairs of hazard
+cameras (HazCams) mounted to the front of the rover, and two stereo pairs of HazCams mounted to the rear of the
+rover (Maki et al., 2012).
+Like the Mars Exploration Rovers (MER), Curiosity is a six-wheeled rover with a rocker-bogie suspension. The six
+wheels are identical. They are constructed of aluminum (for its light weight), and have a width of 40 cm and a diameter
+Table 1: Curiosity mobility-related mission peaks during the ﬁrst seven years
+Data Types Sol Value
+Max rover pitch 2476 25.22◦
+Max rover roll 2047 20.69◦
+Max rover tilt 2477 25.34◦
+Longest drive on RCE-B 665 142.498 meters
+Longest drive on RCE-A 2221 59.428 meters
+Max number of VO failures in one sol 2434 11
+Max rover slip 2087 98.7%
+Max wheel slip 2087 98.7%
+Max differential angle 1371 9.40◦
+Max bogie angle 1473 -21.30◦
+Max non-startup drive current 1587 4.422A (right rear wheel)
+Max non-startup steer current 1616 3.439A (right rear wheel)
+Max drive current 1587 4.422A (right rear wheel)
+Max steer current 494 3.594A (left front wheel)
+Table 2: Key Curiosity Wheel and Steer Actuator speciﬁcations
+Speciﬁcation Value
+Gear ratio 1024:1
+Encoder ticks per motor revolution 144
+Encoder ticks per output revolution 147,456
+Encoder accuracy 0.0024◦/tick (not including backlash)
+Encoder sampling rate 64 Hz
+Max current 10 A
+Max wheel angular rate +/-9.63◦/s
+Max wheel linear speed 4.2 cm/s
+Table 3: Key Curiosity suspension resolver and IMU speciﬁcations
+Sensor Sampling rate Accuracy
+Resolver 64 Hz 0.51◦to 0.65◦
+(experimentally measured)
+LN-200 IMU 8 Hz Not published
+Table 4: Key Curiosity ECAM speciﬁcations related to mobility. All ECAM stereo pairs have backup cameras, but
+only the two pairs of rear HazCams are mounted on opposite sides of the rover (left side for RCE-A, right side for
+RCE-B).
+Cameras Field of View Sensor Resolution Location
+NavCams 45◦x 45◦ 1024 x 1024 or 256 x 1024 Forward right corner mast
+Front HazCams 124◦x 124◦ 1024 x 1024 or 256 x 1024 Center of front body panel
+Rear HazCams 124◦x 124◦ 1024 x 1024 or 256 x 1024 Outside of rear body panel
+of 50 cm. The six wheels are named left front (LF), left middle (LM), left rear (LR), right front (RF), right middle
+(RM), and right rear (RR). The MSL wheel design is detailed in (Haggart and Waydo, 2008).
+Curiosity’s rocker-bogie suspension system is similar to the Mars Sojourner rover (Bickler, 1998) and MER (Harring-
+ton and V oorhees, 2004). There is no motorized actuation in the rocker-bogie suspension system. Changes in the
+suspension occur passively in response to the wheels’ interaction with terrain. The primary beneﬁt of the rocker-bogie
+suspension system is its ability to keep the tilt angle of the rover body low when individual wheels encounter tall
+terrain features, reducing the risk of rover tip-over. The rocker arm rotates about the differential pivot, and the bogie
+arm rotates about the bogie pivot. Resolvers measure the bogie and differential angles at 64 Hz. The accuracy errors
+of all of Curiosity’s suspension resolvers were experimentally determined (using an absolute encoder) to be within the
+range of 0.51◦to 0.65◦.
+A differential angle increases when the corresponding front wheel is climbing, and decreases when it is descending.
+A bogie angle increases when the corresponding middle wheel is climbing and/or the rear wheel is descending. A
+differential bar across the top of the rover body connects to the left and right rocker arms through short links and
+rotates about the Center Differential Pivot (CDP), constraining the left and right differential angles to have the same
+magnitude but be oppositely signed.
+There are ten identical wheel and steer actuators (WSA) on the Curiosity rover. Six of the WSAs are mounted in
+the hub of each of wheel, and enable driving by rotating each wheel independently about its horizontal axis. Four
+of the WSAs are mounted above the front and rear wheels to enable steering by rotating each wheel independently
+about its vertical axis. The middle wheels are not steerable. The mobility subsystem is illustrated in Figure 4 and key
+speciﬁcations are included in Table 2, Table 3, and Table 4.
+Figure 4: Curiosity in the Jet Propulsion Laboratory (JPL) Spacecraft Assembly Facility. The mobility system consists
+of six identical aluminum wheels, six drive actuators, four steer actuators, an IMU (mounted inside the rover body), a
+rocker-bogie suspension, and the ﬂight software related to mobility and navigation, which makes use of ECAMs.
+Each WSA contains a brushless, direct current (DC) motor with 1024:1, 4-stage, planetary gear reduction, a brake, and
+a incremental encoder. Each WSA can handle 10A of current and can generate 1000 Nm of torque. In practice, the
+drive and steer currents are much lower than 10A. The max WSA current during the ﬁrst seven years of the mission
+has been 4.422A. Software current limits for each actuator are speciﬁed by setting parameters. The current limits for
+the drive and steer actuators have been set to 5.25A and 4.5A, respectively. The average motor current and current
+standard deviation of each WSA are discussed in the Section 8.
+Curiosity’s motor controller assembly (MCA) has eight motor controller driver (MCD) boards. Therefore, up to
+eight of the thirty-eight rover motors can be simultaneously controlled. Since Curiosity has ten WSA, all of the
+WSAs cannot be simultaneously controlled. Due to this limitation, which arose during the avionics design of the
+motor control board accommodation strategy, a steer-then-drive architecture is used. Steer relative encoders are not
+monitored during driving and drive relative encoders are not monitored during steering. In addition, any mobility
+motor motion that occurs after a mobility command completes is not measured by WSA encoders.
+Curiosity executes drive steps primarily using two drive primitives; an arc and a turn-in-place maneuver. Arcs are
+speciﬁed with an arc length and the desired change in heading, or delta heading. Straight arcs are speciﬁed with a delta
+heading of zero. Arc commands are executed open-loop, i.e., their termination does not depend on reaching a heading
+or position. An arc command is executed by steering ﬁrst, if needed to achieve the commanded curvature, then driving
+the wheels until half of the wheels have turned the pre-determined amount needed for ideal planar terrain.
+As shown in Figure 5, most of Curiosity’s commanded arcs have been straight (81.0%) or with a shallow curvature.
+The arc with the largest commanded delta heading was on sol 595; a backwards arc with an arc length of 3 meters and
+a delta heading of 120◦was commanded mid-drive when transitioning from forward driving to backward driving.
+Figure 5: Arc drive steps are speciﬁed by an arc length and change in heading. This plot contains the commanded
+heading change for all 22,312 commanded arc drive step during the ﬁrst seven years of the mission. Most of the
+commanded arcs have been straight (81.0%) or with a shallow curvature.
+Some heading error (i.e., unintended yaw) inevitably occurs during constant curvature arc driving, the extent of which
+depends on rover tilt, the wheel/terrain interaction, and whether TRCTL is enabled. Curiosity’s ﬂight software (FSW)
+was updated to version R11 on sol 482, and included an enhancement that calculates heading error statistics for straight
+arcs onboard, and reports them in telemetry for each drive step. Figure 6 shows the mean heading error and standard
+deviation of heading error for the straight arcs that were executed beginning on sol 482. Nominal use of TRCTL
+began on Sol 1678, and the reduction in both the mean of the absolute value of the mean and standard deviation of the
+heading error for straight arcs since then has been 41%.
+Figure 6: Mean heading error (left) and standard deviation of heading error (right) for each executed straight arc
+beginning on sol 482, when Curiosity’s ﬂight software was updated to include this data in telemetry. The number of
+straight arcs executed between sols 482-1677 (pre-TRCTL) and sols 1678-2488 (post-TRCTL) were 9,990 and 4,840,
+respectively. The average number of samples for each straight arc executed between sols 482-1677 (pre-TRCTL) and
+sols 1678-2488 (post-TRCTL) were 215.0 and 210.4, respectively. The spike on sol 1789 to 6.75◦occurred due to the
+right wheels being in sand and the left wheels being on ﬁrmer terrain. Wheel slip reached 78.3% and the rover heading
+change caused the yaw limit to be exceeded, stopping the drive early.
+Turns-in-place can be speciﬁed using an arc length of zero, but in practice are typically commanded using specialized
+closed-loop turn commands that only terminate when the desired heading has actually been achieved, as measured
+by the IMU. Figure 7 contains a plot of the commanded heading change for three types of closed-loop turn-in-place
+commands; 1) a turn relative to the current heading, 2) a turn to an absolute heading, and 3) a turn to face a navigation
+goal or a speciﬁed offset from a navigation goal. Turning to face a navigation goal or offset from a navigtion goal is the
+most used turn-in-place command, accounting for 75.2% of the total magnitude of turn commands. They are typically
+commanded after arriving at a waypoint to point the rover towards the next waypoint. Turning to an absolute heading
+is common at the end of a drive to orient the rover at a heading optimal for transmitting telemetry to a Mars orbiter or
+direct to Earth (DTE), accounting for 17.0% of the total magnitude of turn commands. Several large magnitude turns
+were performed during the period between sol 500-650 when there was an increase in the usage of backwards driving.
+In addition to these basic commands, the rover also accepts a high-level command to drive to a nearby waypoint. The
+surface navigation ﬂight software autonomously selects an arc or turn to execute as the next step toward the waypoint
+goal. During steps requiring steering, the steering actuator brakes are released, the front and rear wheels are steered to
+appropriate steer angles, the steering actuator brakes are engaged, then the drive step is executed.
+3 Visual Odometry
+Maintaining an accurate pose estimate yields many operational beneﬁts for mobility. When human operators create a
+drive plan for a given sol, they often specify terrain features like drive goals and hazard locations in map coordinates
+(expressed in a local “Site frame”). So it is important for the rover to know where it is within that frame, to stay safe
+and know when it has reached its desired goal location. Curiosity nominally uses its IMU to sense attitude changes
+at 8 Hz, wheel odometry to estimate its distance traveled at 8 Hz, and VO ﬂight software to measure actual changes
+in position less frequently. The wheel-based distance vector is added to the current position by projecting it forward
+according to the current gyro-based attitude. Other conﬁgurations are possible in the event of component failure,
+but this is the mode that has been used for the period presented in this paper. Since VO works by tracking terrain
+Figure 7: Commanded heading change for all of the closed-loop turn-in-place commands (left) and average command
+turning for sols that included closed-loop turn-in-place commands (right). The percentage of the total magnitude of
+relative, absolute, and turn to goal or goal offset turn commands are 7.8%, 17.0%, and 75.2%, respectively. For the
+average command turning plot, a 250 sol interval was arbitrarily selected. Decreases in average command turning have
+been temporary.
+Table 5: VO statistics during the ﬁrst seven years of the mission
+Activity Count
+Drive sols using VO 692
+VO attempts while driving 20,682
+VO convergences while driving 20,588
+VO failures reported 94
+VO failures caused by FSW 66
+Average VO attempts per drive sol 29.86
+Number of drives stopped by VO failures 5
+features, there must be enough overlap between images to enable tracking of dozens of features. Most drives plan
+to achieve 60% or more overlap between images, typically stopping every 1 meter to acquire and process new image
+pairs. NavCams have 45◦ﬁelds of view, and are located on the pointable RSM at 1.96 meters above ﬂat ground. During
+VO drives they are typically pointed down between 20-30 ◦in elevation, and their azimuth can vary by nearly 180 ◦.
+Normally RPs point them either to the right or forward, depending on the local terrain feature availability and rover
+shadow predictions, but they can also be pointed at a particular locations in Site frame.
+Table 6: VO failures by category
+Failure Type Count
+VO failed to converge 66
+Step truncation reimaging failure 12
+Sequencing failure 10
+Strategy failure 3
+IMU parameter failure 3
+Total 94
+Curiosity’s VO capability built on the success of the MER Visual Odometry algorithm (Maimone et al., 2007a),
+updating the algorithm and improving its performance (Johnson et al., 2008). The technique works by comparing pairs
+of stereo images taken in the 45◦FOV navigation cameras (Maki et al., 2012) before and after a relatively short drive
+step, typically one meter apart. Terrain features are discovered and tracked autonomously, and the resulting motion
+vectors are processed yielding a 6-DOF pose update. So long as enough features are found and multiple internal sanity
+checks all pass, the position part of the update is incorporated back into vehicle’s current position estimate. Although
+VO computes both attitude and position updates, the IMU attitude solution has performed well during the ﬁrst seven
+years (as witnessed by even long-range drives achieving their speciﬁed goals), so only VO position updates have been
+conﬁgured for use.
+As illustrated in Figure 8, Curiosity VO position accuracy is better than 1 mm when the NavCams are pointed in the
+default VO direction (to the right and down), there are no shadows of the rover in the VO images, and consecutive
+NavCam images are used for the VO update images. The steady accumulation of position error in the right plot (with
+correlated direction in the left plot) is likely attributable to the fact that we ran VO in a special ”Keep Seed” mode for
+this test; instead of comparing the most recently acquired pairs of images, we compared each new image pair against
+the very ﬁrst one taken. As a result the micro-shadows generated near small pebbles moved with the Sun in the update
+image but not the seed image, causing the sub pixel location of some highest contrast update features to move as well.
+The increased error is therefore likely attributable to this unmodeled shadow motion at a small scale (see the difference
+image in the lower right of Figure 8). In total, 141 measurements were made using images spanning 5429 seconds
+from 11:40:45 to 13:08:49 in Mars local time.
+3.1 Measuring Slip
+Another beneﬁt of VO is that it is the only system on the rover that can provide positional slip estimates with sufﬁcient
+precision. Although in theory one could attempt to derive a position estimate by doubly integrating accelerometer
+measurements, in our system those readings are often too noisy to provide useful data directly. See Figure 9 for a
+comparison of rover tilt values derived from accelerometers vs those derived from gyros on a particular sol.
+Using VO, we compute two slip fraction estimates onboard, rover slip and wheel slip.
+Wheel Slip Fraction is the sum of the linear distances of all VO-corrected wheel positions from what their
+idealized/no-slip positions would be, divided by the summed wheel pathlengths driven since the prior VO
+initialization/update. This deﬁnition is valid for all basic motions including turns in place.
+Rover Slip Fraction is the Euclidean distance between the initial (idealized/no-slip) and VO-corrected positions of
+the rover origin (located at the rover’s turning center between its middle wheels), divided by the idealized/no-
+slip pathlength the rover origin has taken since the prior VO initialization/update. Note that this is undeﬁned
+(and therefore not computed) during turns in place.
+Table 7: Overall Mission Slip Statistics (max slip from sol 2087)
+Category Percentage
+Average of max rover slip per sol 16.69%
+Average rover slip 6.24%
+Average wheel slip 8.44%
+Max rover slip 98.70%
+Max wheel slip 98.70%
+For example, a wheel slip fraction of 0.0 means there was no slip; VO conﬁrmed the rover was at its estimated no-slip
+position. On the other hand, if the rover commanded a straight arc but VO determined it did not move at all, the wheel
+slip fraction would be 1.0.
+Figure 8: On sol 571, VO was performed 141 times over a 90.5 minute period with Curiosity and the RSM stationary.
+The NavCams were pointed in the default VO direction (to the right and down) and the test was performed at a time
+when the terrain in the VO direction was not in the rover’s shadow. For this period, the rover pose was not updated
+after each VO step; VO was used to monitor the rover state during drill operations, and would have halted drilling had
+excessive slip been detected. Each VO step used the initial VO seed image. The average 3D VO position error was
+1.5 mm with a standard deviation of 0.9 mm. VO 3D position error increased generally linearly with the time between
+the VO seed image and the VO update. During drives, consecutive NavCam images are used for the VO seed and
+update images, acquired approximately 1 minute apart, depending upon the selected drive step distance. The graphs
+in the top row show the position error location offsets and magnitude, respectively. The images in the bottom row
+are the seed image from 11:40:45 Mars local time, the update image from 13:08:49 Mars local time, and a difference
+image showing the absolute value of each pixel’s intensity difference between those two images, illustrating the small
+shadow changes that resulted from the Sun’s motion.
+To avoid spurious faults due to high relative slip on very short drives, slip fractions are only generated onboard when
+the path length between VO updates exceeds a minimum threshold, nominally 0.35 meters. Our fault responses can be
+conﬁgured to use either slip measurement, but we have only used Wheel Slip because it is well-deﬁned for all motions.
+Excessive slip is one of the many possible mobility faults that can terminate a drive early. RPs (i.e., those members
+of the operations team responsible for creating mobility, arm and turret command sequences daily) determine the
+maximum allowable slip each sol, expressed in two sets of limits. The VO slip “Fast” limit is a slip fraction threshold
+which, if exceeded, will cause the rover to stop immediately. The VO slip “Slow” limit is a slip fraction and a
+persistence number; if the “Slow” limit is exceeded for the persistence number of contiguous updates, then a fault will
+be raised.
+Overall slip statistics are given in Table 7, and a plot of the slip fractions measured over the entire mission in Figure 10.
+Figure 9: Example comparison of gyro-based tilt estimates vs accelerometer-based tilt estimates from the longest drive
+on sol 665 (shown in Figure 22). The X axis is the number of the tilt sample collected (at 8 Hz) during all driving, the
+Y axis is the overall vehicle tilt. The green points are tilt estimates generated by integrating IMU gyro readings over
+time, the red points are tilt estimates derived from the instantaneous accelerometer readings. Gyro readings are far
+more stable, because unlike accelerometers they are not inﬂuenced by outside forces acting on the rover (e.g., wheel
+drops off small rocks, compression and release within the rover suspension).
+3.2 Visual Odometry Fault Categorization
+RPs decide where to point the VO cameras during each drive step, to maximize the likelihood of VO being able to
+converge on a solution by ensuring sufﬁcient overlap between adjacent VO image pairs. They are aided in this task
+by planning tools that evaluate overlap in the drive plan (Maimone et al., 2018), but still need to know if convergence
+failures occur. So it is important to provide feedback to the planning team whenever VO fails to converge on a motion
+estimate, since that knowledge can help improve results for the future drives.
+Figure 10: Rover and wheel slip fraction. Slip can vary widely over a drive as rover tilt and terrain type changes.
+Figure 11: As of sol 2488, VO has been performed 20,682 times during mobility activities with only 94 failures. The
+max VO failures in a single drive was 11, occuring on sol 2434. Because the terrain surrounding the planned drive was
+feature-poor, a high number of VO failures was anticipated. The max number of VO failures was set to 10. When the
+11th VO failure occurred, it set a mobility goal error, stopping the drive 2.82 meters short of the predicted odometry.
+During mobility operations on Mars thus far, MSL VO has successfully converged to a solution 20,588 times out of
+20,682 attempts, yielding a remarkable success rate of 99.55%. See Figure 11 for a per-sol breakdown and Table 5
+for additional overall statistics. These numbers do not include VO use during non-mobility activities. The different
+categories of VO failures that have occurred are summarized in Table 6 and Figure 12. The ﬁve categories from that
+table are:
+VO failed to converge The majority of failures (66) were due to the algorithm failing to detect enough self-consistent
+features to be conﬁdent in its estimate and thus failing to converge on a solution; that often happens when the
+cameras are pointed at all-sandy terrain with few obvious unique features, for instance.
+Step truncation reimaging failure When driving to a goal location, the rover may autonomously command a turn
+so sharp that there would be little or no overlap between VO image pairs. Although the FSW was designed
+to recognize that possibility and automatically truncate any large steps to enable VO to keep working, a bug
+in the FSW prevented VO reimaging from occurring in those cases. A ﬁx has been developed and is being
+considered for uplink.
+Sequencing failure RPs sometimes realize during plan construction that their command sequences may result in VO
+failing to converge, but decide to send them anyway (e.g., on the last leg of a drive if precise localization is
+not required). Or they may send commands outside the normal recommended bounds (e.g., driving a longer
+distance between image pairs).
+Strategy failure Sometimes a fault unrelated to VO causes a mobility command sequence to stop executing. In that
+off-nominal case, VO can sometimes accidentally try to match images with completely different pointing
+conﬁgurations, resulting in a failure to converge. But since the original plan did follow the best practices, we
+categorize these as strategic failures rather than sequence failures.
+IMU parameter failure On sols 122, 123, and 124, one of the built-in sanity checks triggered, forcing one VO
+estimate to be rejected each sol. The check was that the VO attitude estimate should match the IMU-generated
+one within 1◦in roll, pitch, and yaw, and each time, the pitch estimate differed by more than 1◦(-1.391, -1.072,
+-2.195◦, respectively). Subsequent investigation led to the conclusion that the VO update was actually correct,
+but there was a bug in the IMU parameter settings (subsequently ﬁxed) that inadvertently dropped attitude
+updates under high acceleration. Figure 13 shows that there has been little disagreement since those events.
+Figure 12: Number of VO failures per sol for each type of VO failure. The category that has had the most VO failures
+is ‘VO failed to converge’, which often happens on all-sandy terrain with few obvious unique features.
+4 Drive Modes
+Curiosity can be commanded to drive with varying amounts of autonomy and attention. At the highest level, there are
+three Autonomous Imaging capabilities, four path-selection modes, and two drive motor control strategies.
+4.1 Autonomous Imaging
+4.1.1 Visual Odometry
+The process of acquiring VO images, transferring them to the CPU, downsampling them, generating a motion estimate
+and writing data products collectively takes 47 seconds on average, due to the overall architectural design (133 Mhz
+RAD750 CPU, VxWorks operating system, 512 Mbytes RAM, camera design, camera interface board design, ﬂash
+memory operation). Drives are faster when VO is off, but safest when VO is fully on. So human operators choose
+between four operational VO modes depending on the needs of a particular plan and the current terrain.
+Off No VO images are taken, no slip measurements are done.
+VO Full VO processing occurs at every step, nominally 1 meter apart.
+Slip Check During most of the drive no VO images are taken. But every 20 meters, a pair of stereo images is collected
+around a 40 cm step. That results in a slip estimate that has the potential to stop the drive if pre-established
+thresholds are exceeded. The distance is parameterized, but was set to 20 meters based on analysis of how
+deep we’d be willing to bury the wheels if we were to unexpectedly become embedded. Opportunity was
+stuck for ﬁve weeks after digging in after some 45 meters of commanded motion on sol 446 (Maimone et al.,
+2007a), and ever since then we have relied on VO as our primary means to stop us from getting embedded by
+measuring slip.
+VO Auto In this mode, VO switches autonomously between Slip Check and Full modes, depending on local terrain
+conditions. There are four criteria that can cause the rover to transition to Full VO imaging: rover tilt, average
+motor current, angular rate during turn-in-place, and slip amount.
+4.1.2 Hazard Detection
+Hazard Detection generates a 3D model of the nearby terrain by processing a stereo pair of HazCam images and
+multiple stereo pairs of NavCam images. The 3D information is merged into a multi-layer, rover-centered 2D World
+Map using the GESTALT algorithm (Biesiadecki and Maimone, 2006). By default, the World Map models nearby
+terrain at 40x40 cm2 resolution and has a size of 10x10 m2. During hazard detection, the World Map is updated at the
+end of each drive step.
+4.1.3 Visual Target Tracking
+The rover can be commanded to autonomously re-center on a target as it drives. (Kim et al., 2009; Maimone et al.,
+2007b) describe the initial demonstration of this capability on the Mars Exploration Rovers, and Figure 14 shows some
+of the targets that Curiosity used to demonstrate its own VTT capability.
+Figure 13: The average difference between IMU and VO rover attitude angles for each drive where VO was performed
+has been below 0.18◦except for on sols 122-124. On sol 124, a bug in a IMU parameter setting was ﬁxed.
+Table 8: Key Curiosity mobility behavior camera conﬁgurations. All behaviors are reconﬁgurable and have changed
+throughout the mission, these are the most commonly used settings. Pixel resolution is speciﬁed as Rows x Columns.
+Stereo Capture Processed Pointing Range
+Cameras resolution resolution Direction (meters)
+Visual Odometry
+NavCams 256 x 1024 256 x 256 Site or Rover-ﬁxed
+Frame (e.g., For-
+ward, Right)
+1.5 - 15
+Autonav Forward Mapping
+NavCams 256 x 1024 256 x 256 -54◦Az (Left) 2.5 - 10
+NavCams 256 x 1024 256 x 256 -14◦Az (Forward) 2.5 - 10
+NavCams 256 x 1024 256 x 256 26◦Az (Right) 2.5 - 10
+Front HazCams 256 x 1024 256 x 256 Forward 0.3 - 3
+Autonav Backward Mapping
+Turn in place 30 degrees
+Rear HazCams 256 x 1024 256 x 256 Backward 0.3 - 3
+Rear HazCams 1024 x 1024 192 x 1024 Backward Horizon 3 - 10
+Turn in place -30 degrees
+Rear HazCams 256 x 1024 256 x 256 Backward 0.3 - 3
+Rear HazCams 1024 x 1024 192 x 1024 Backward Horizon 3 - 10
+Visual Target Tracking
+NavCams 1024 x 1024 1024 x 1024 Site Frame Loca-
+tion or Azimuth/
+Elevation
+˜ 1 - 100
+Figure 14: Examples of VTT features successfully tracked by Curiosity on sols 743, 923, and 967 for 6, 11, and 36
+frames respectively. Visit https://mars.nasa.gov/msl/multimedia/raw-images/, select “Left Navi-
+gation Camera” and choose the sol number to see all the tracked frames.
+These onboard autonomous imaging capabilities can be used simultaneously or individually, but in practice they are
+typically used independently. Using them together can result in signiﬁcantly slower overall drive speeds, as many
+seconds are needed not only to perform the extra autonomous image processing, but also to re-point the NavCams
+between different terrain features, since such re-pointing can only occur while the vehicle is stopped. Only a single
+VO mode can be active at one time but the VO mode can be changed during a drive. The most commonly used ECAM
+conﬁgurations for Curiosity’s autonomous imaging capabilities are shown in Table 8.
+4.2 Path Selection
+In waypoint-style driving, where the goal is speciﬁed as a point in the current Site Frame, four different path selection
+strategies are available. During the ﬁrst seven years of the mission, 33.2% of the attempted drives have included
+waypoint-style driving. The remainder of the drives were planned using only arc and turn-in-place drive primitives.
+Directed Drive directly toward the goal.
+Guarded Drive directly toward the goal, but consult the World Map to ﬁnd hazards as you go. If any cell along
+the path would cause the rover to enter a Keep-out Zone or get too close to a geometric hazard, the drive
+will terminate before planning the step that would drive onto that cell. This mode is often used for short
+drives across small ridge-occluded areas between visible terrains, in conjunction with collecting imagery and
+building up the World Map.
+Avoid Keep-out Zones (AvoidKOZ) Autonomously avoid any manually-speciﬁed Keep-out Zones, but do not con-
+sider geometric hazards by consulting the World Map.
+Avoid all hazards (AutoNav) Autonomously select a path to steer around any nearby geometric hazards and Keep-
+out Zones. Used in conjunction with collecting imagery and building up the World Map.
+Only a single path selection mode can be active at one time, but the path selection mode can vary for each waypoint
+in a drive. If global path planning is enabled, the AvoidKOZ and AutoNav path selection modes use a version of the
+Field D* algorithm to choose a globally optimal path (Ferguson and Stentz, 2006), (Carsten et al., 2009). After
+each drive step, the World Map is merged into a Global Map having the same resolution but a default size of 50x50
+m2. Global path planning is enabled by default and has been used for all portions of drives during the mission where
+the AvoidKOZ or AutoNav path modes were selected. Planning is done in the 2.5-D world model without predicting
+future slip (Biesiadecki and Maimone, 2006).
+4.3 Drive Wheel Speed Control
+Curiosity implements arc-based driving using traditional double Ackermann steering control, pointing each corner
+wheel independently along a tangent to the turning circle for that wheel’s radius.
+Two options exist for controlling each wheel’s speed:
+Constant Speed When driving in its default mode, the FSW commands each wheel to rotate using a constant angular
+rate. The maximum rate is 0.168 radians/s, which translates into a maximum linear wheel speed of 4.2 cm/s. Wheels
+with the greatest turning radius are commanded at this highest speed, with other wheels’ rates set in proportion, so that
+all wheels will end the drive segment at the same predicted time.
+Terrain-adaptive wheel speed control Since sol 1678, we have primarily used a new terrain-adaptive wheel speed
+control algorithm called TRCTL (Toupet et al., 2020). The TRCTL algorithm combines real-time suspension and
+attitude angle measurements with a rigid-body kinematic model to generate real-time estimates of idealized (no slip)
+wheel speeds. In this mode, at least one wheel is commanded at the maximum wheel angular rate, while the other
+rates are scaled accordingly. Wheels climbing rocks are sped up due to the resulting change in suspension and attitude
+angles, as they must cover more distance than those on ﬂat ground. TRCTL was implemented as a hot patch to the
+ﬂight software and it commands the speed of each wheel at 8 Hz.
+Figure 15: Number of sols using each drive mode. The VO modes have green labels and the path selection modes
+have blue labels. The sum of the usage of drive modes is more than the number of drive sols because multiple drive
+modes can be used in a single drive. The odometry on 29 drive sols was under 5 cm. The purpose of drives that short
+is typically to better position the rover with respect to a selected target for robotic arm activities.
+5 Drive Odometry, Rate, and Frequency
+Use of the various drive modes has changed as the mission has progressed. Figure 15 shows the number of drive
+sols that employed each drive mode, Figure 16 shows the commanded odometry for each drive sol, categorized by
+drive mode, and Figure 17 shows the cumulative commanded odometry for each drive sol, categorized by drive mode.
+Although a single VO mode and path selection mode can be active at one time, multiple modes can be used in a single
+drive. For example, VO Full and Directed could be used to drive to the ﬁrst waypoint, and VO Auto, AutoNav, and
+TRCTL could be used to drive to the second waypoint. For Figures 15 - 17, commanded odometry for each drive
+command is assigned to a single drive mode. For drive commands with VTT enabled, the odometry for that command
+is categorized as VTT odometry, regardless of the VO mode and path selection mode. For drive commands with
+VTT disabled and a path selection mode selected, the odometry for that command is categorized by the selected path
+selection mode, regardless of which VO mode is selected.
+Figure 18 shows a comparison of Curiosity and Opportunity actual odometry. Although the comparison is of historic
+interest, mobility choices are guided by each mission’s long term strategic science plan, and are subject to changes due
+to near term science objectives and engineering safety constraints arising from terrain features not evident from orbital
+planning images. Other factors that affect drive frequency are times when a rover is stationary for extended periods,
+such as during drill campaigns, transition to a new ﬂight software version, anomaly investigation and recovery, and
+solar conjunction (when Mars is behind the Sun relative to Earth, resulting in limited communication).
+Referring to Figure 17, the rover drove relatively little during the ﬁrst year, mainly because we had the good fortune
+to land in an area rich with targets of interest to the science team (“Yellowknife Bay”). It did not take long to reach
+them, so we mainly exercised directed driving with occasional VO for the ﬁrst 200 sols. After the ﬁrst year we started
+driving as fast and far as possible, making use of VO Auto for slip safety and AutoNav to enable the rover to extend
+human-planned drives safely into terrain unseen by human eyes. This is evident in the increasing slope in Figure 17
+and the distance-per-sol records in Figure 16. Discovery of wheel skin damage around sol 490 and our ﬁrst partial
+embedding event on sol 672 (see Figure 19) each led to downturns in drive rate during the subsequent weeks. Those
+events and the discovery around sol 710 (in “Hidden Valley”) that the rover’s performance in polygonally-rippled sand
+was insufﬁcient to make good progress led us to favor somewhat slower VO Full drives ever since, given that mode
+can react most quickly to any unexpected slip events (Arvidson et al., 2017b).
+Over 88% of Curiosity’s driving has been accomplished using some form of VO autonomous software, demonstrating
+the operations teams’ choice to reap the beneﬁts of onboard autonomy; even though it resulted in slower drive progress,
+driving overall was safer and more effective due to reduced positional uncertainty.
+Figure 16: Curiosity commanded odometry in each drive mode per sol. Multiple drive modes can be used in a single
+drive. Drive commands with VTT enabled are categorized as VTT odometry, drive commands with VTT disabled
+and a path selection mode selected are categorized as odometry for the selected path selection mode, and remaining
+drive commands with a VO mode selected are categorized as odometry for the selected VO mode. VO Full is the most
+often-used drive mode. The least used drive modes are AvoidKOZ (commanded on sols 896, 978, 986, and 987), Slip
+Check (commanded on sols 665, 668, and 1986), and VTT (commanded on sols 743, 923, 967, 1822, and 1829).
+Figure 17: Curiosity cumulative commanded odometry by drive mode. Multiple drive modes can be used in a single
+drive. The most often-used drive modes are VO Full, VO Auto, Directed, and AutoNav.
+Figures 20 and 21 illustrate the different drive rates possible for various combinations of vision-based autonomy with
+TRCTL disabled and enabled, respectively. Recall that since TRCTL entails only one wheel guaranteed to be traveling
+at the max wheel speed, one might expect longer drive times for achieving the same drive distance. Indeed, this can be
+seen in the empirical effective traverse rates with TRCTL enabled and can be viewed as a performance tradeoff made
+in favor of preserving wheel health.
+At the end of every drive, performance statistics are extracted from telemetry and reported to the operations team.
+The best such odometry statistic, and the one closest to ground truth we have available, is the ideal path length
+scaled according to VO corrections, as it incorporates the ideal vehicle kinematics as well as any deviations from it as
+observed in VO updates.
+There have been 738 attempted drives as of sol 2488, resulting in a cumulative odometry of 21,318.545 meters.
+Curiosity’s drive distances each sol have ranged from its shortest drive of 2.6 centimeters (sol 1555) to its longest
+drive of 142.5 meters (sol 665, see Figure 22). The odometry for 29 of the 738 attempted drives (3.9%) was less than
+5 cm. The purpose of very short drives is typically to reposition Curiosity in preparation for robotic arm activities on
+a selected science target. The average odometry per attempted drive is 28.9 meters, and the average drive frequency is
+once every 3.37 sols.
+The amount of distance commanded is generally determined by the near term science goals. For much of the mission,
+the focus has been on using the arm to performin situ measurements on or close to the Martian surface. As such, there
+is often a goal to “drive to this nearby target”, or “do not change elevation more than this amount before stopping”.
+Such operational constraints limit how long a given sol’s drive will be. It is only when there is a desire to pass by much
+of the local terrain that long-distance drives are desired, and planned. We have not attempted to characterize each sol’s
+science team goals in setting drive distances for this paper.
+Curiosity has two general purpose RAD750 computers, one of which functions as the primary and the other as a
+backup. These are referred to as Rover Compute Element A (RCE-A) and Rover Compute Element B (RCE-B). At the
+Figure 18: Curiosity and Opportunity cumulative actual odometry. Although of historic interest, drive decisions
+are guided by each mission’s long-term strategic science plan, near-term science objectives, and terrain-dependent
+engineering safety constraints.
+start of the mission, RCE-A was the prime computer and RCE-B was the backup computer. Due to an anomaly related
+to a failing region of RCE-A NAND ﬂash memory, the operations team commanded a swap to RCE-B on sol 201.
+After the data product partition on RCE-B failed to mount on sol 2173, the operations team switched back to RCE-A
+on sol 2188 until after the RCE-B data product partition was reformatted on sol 2342. The cumulative odometry
+performed on RCE-A and RCE-B are 1,158.793 meters (5.63%) and 20,159.565 meters (94.37%), respectively, with
+RCE-A mobility having occurred between sols 15-166 and sols 2250-2338.
+6 Drive Direction
+Rover driving can be performed in the forward direction, in the backward direction, or by turning in place. Turning in
+place is commonly used on benign terrain 1) after the rover reaches a waypoint, to align itself with the next waypoint,
+or 2) after the rover has reached the drive goal position, to turn to a heading optimal for transmitting telemetry to a
+Mars orbiter or directly to Earth. Turning in place does not use TRCTL, regardless of whether it is disabled or enabled
+in software parameters. Steering on harsh terrain can cause more wheel damage than driving on harsh terrain. Since
+turning in place requires steering the outer four wheels, turning in place is typically planned on mostly benign terrain.
+Although backwards driving has been shown to reduce the forces on the middle and front wheels, forward driving is
+much more common than backward driving for two primary reasons related to the desire to limit turning in place. First,
+transitioning between a forward drive and a backward drive in the most efﬁcient manner typically requires turning in
+place. Secondly, a turn-in-place is typically needed at the end of a backward drive to perform post-drive imaging in
+the direction of the next drive. This is because the rover body occludes nearby terrain when imaging backwards with
+the ECAMs on the mast. Post-drive imaging is performed to update the ground-based terrain mesh used to plan the
+next drive.
+Figure 19: Front hazcam view of the sol 672 partial embedding event where VO Auto stopped the backwards drive
+early.
+Backwards driving can add up to 360◦of turning in place to a drive; up to 180◦at the beginning of the drive to transition
+from the imaging position of the previous drive to the rear of the rover pointed in the direction of the ﬁrst waypoint,
+and up to 180 ◦at the end of the drive to acquire post drive images in the direction of the next drive. A turn in
+place of 360◦results in 10, 7.44, and 9.5 meters of additional wheel odometry for the front, middle, and rear wheels,
+respectively. During that additional wheel odometry, additional wheel damage can occur. In addition, allocating time
+for backwards driving related turning in place reduces the translational distance that can be achieved in the allowable
+drive time.
+Figure 23 shows the cumulative commanded forward and backward odometry up through sol 2488. The cumulative
+commanded forward and backward odometry are 17,805.671 meters (80.1%) and 4,435.860 meters (19.9%), respec-
+tively. On sol 546, backwards driving usage sharply increased in response to wheel wear test results from the JPL Mars
+Yard indicating forces on wheels are lower for backward driving than forward driving. However, there was no change
+in Curiosity’s wheel damage rate due to the additional wheel odometry from turning in place. On sol 671, backwards
+driving usage was sharply decreased, given it did not decrease Curiosity’s wheel damage rate but reduced the overall
+drive distance achievable in the allocated time.
+Positive wheel angular rates for a left and right wheel corresponds to forward driving, negative wheel angular rates
+for a left and right wheel corresponds to backward driving, and left and right wheel angular rates with a different sign
+corresponds to turning in place. Angular rate data for the LF and RR wheels were analyzed up through sol 2488. The
+Figure 20: Effective drive rates without TRCTL. Boxplot showing interquartile range (blue) and median (red) for
+traverse rate and duration of each drive command by mode. Rather than reporting the ”mean of the achieved speeds,”
+which is not a meaningful quantity, we instead indicate the true average speed (quotient of total drive distance and
+total drive duration) for each mode with a green triangle and numeric label. The order of the arguments for ”Go to” are
+VO mode, whether or not to update the Hazard Detection map, whether or not to perform VTT, path selection mode,
+and whether or not to run an observation sequence to acquire mid-drive images.
+Figure 21: Effective drive rates with TRCTL enabled.
+Figure 22: Course plot of the longest single-sol drive (sol 665, 142.5 meters) auto-generated by ground tools for
+mobility performance assessment. The drive started in the upper right and ended on the way to the goal at the bottom
+left. The grey path was the simulated path, the blue dots indicate the route actually taken. Dark blue dots indicate drive
+steps without images, light blue dots indicate steps with VO and/or Hazard Detection images, grey dots indicate terrain
+features individually labelled by RPs. Grey rectangles indicate keep-in zones and gray circles indicate waypoints
+(including commanded tolerances). The ﬁnal 25 meters of the drive were in AutoNav mode, and the drive terminated
+successfully when the speciﬁed time limit for the drive was reached.
+number of executed forward, backward, and turn-in-place moves are 4,835,049, 1,224,897, and 594,170, respectively.
+The percentage of the moves that were forward, backward, and turn-in-place are 72.7%, 18.4%, and 8.9% respectively.
+The average rover pitch during forward, backward, and turn-in-place moves has been 3.5, 2.3, and 2.9◦, respectively.
+7 Fault Protection
+Drives can stop earlier than expected for a variety of reasons; one example is when Curiosity detects wheel slippage
+exceeding the limits set for that drive. The rover’s ﬂight software monitors dozens of states and thresholds, any of
+which might lead to the raising of a mobility fault. There are two kinds of mobility faults: a Goal Error alone simply
+means that a command was unable to reach its desired goal state but the rover is still safe, while aMotion Error means
+some safety threshold was exceeded and therefore the operations team must assess the circumstances and correct it.
+Once either fault has been raised, future mobility commands will recognize that status and gracefully fail without even
+attempting to move the rover. In this section, we review drives that failed to accomplish all their planned motions, and
+explain the circumstances that led to their early termination.
+7.1 Planned drives that were not attempted
+Curiosity drives were planned by the MSL operations team on 754 sols. However, drives planned for 16 of the sols
+were not even attempted by Curiosity for these reasons:
+Safe mode When an anomaly occurs, Curiosity stops executing the current plan and causes the prime RCE to reboot
+into safe mode. The three sols Curiosity did not attempt a planned drive because the rover was in safe mode
+are 697, 1391, and 2340. For example, the drive planned for sol 1391 was not attempted because ﬂight
+software detected an inconsistency on sol 1389, which caused the prime RCE to reboot into safe mode.
+Deep space network (DSN) transmission issue The seven sols Curiosity did not attempt a planned drive because the
+plan was not received by Curiosity are 596, 599, 1070, 1165, 1308, 1855, and 1952. For example, the drive
+Figure 23: Curiosity cumulative commanded odometry by drive direction. Backwards driving was increased on sol
+546 in response to observed wheel damage, but was reduced on sol 671 because it did not reduce the wheel damage
+rate but reduced the overall drive distance achievable in the allocated time.
+planned for sol 1070 was not attempted because there was a complex-wide power outage at the Madrid DSN
+site that prevented transmission of the plans for sols 1068-1070.
+Planned drive withdrawn before uplink The six sols Curiosity did not attempt a planned drive because the plan was
+withdrawn before uplink are 104, 912, 933, 1312, 1823, and 2046. For example, the planned drive for sol 933
+was withdrawn after a downlink revealed some of the sol 931 robotic arm activities failed due to a missing
+ﬁle.
+Figure 24 shows the temporal distribution of the 16 planned drives that were not attempted by Curiosity. The cumu-
+lative predicted odometry for those 16 planned drives was 377.9 meters. On subsequent sols, 11 of the unattempted
+drives were replanned with no or little change, and 5 were replanned with signiﬁcant change to the route or distance.
+Figure 24: Sixteen drives were planned but not attempted by the rover.
+7.2 Planned drives that were attempted
+Of the 738 drives that were attempted, 622 (84.3%) successfully completed with the rover reaching its goal position,
+while 116 drives (15.7%) did not run to completion. Despite 116 drive faults occurring, 91.7% of the predicted
+cumulative odometry over the 738 attempted drives was achieved. Of the 116 drive failures, 29 of them were expected
+and 87 were unexpected. Figure 25 lists the 24 reasons why the 116 drive failures occurred, and includes the number
+of expected and unexpected drive faults for each reason. A drive fault is categorized as expected if a RP predicted in
+their daily plan summary that a drive might end early for a speciﬁc reason, and it did.
+26 of the 29 expected drive faults were due to exceeding the time-of-day (TOD) limit, a speciﬁc time when a drive
+sequence must stop (if it is still running) so there is time to run the other activities included in the plan. An example of
+this is stopping the drive at a speciﬁed time to be able to acquire post-drive imaging (for planning the next drive) before
+transmitting data to a Mars orbiter at a scheduled time. Autonomous hazard-avoiding drives are another common case,
+since they rely on the TOD limit to end the drive so that the rover can drive as far as possible in the allotted time. The
+other cases of expected drive faults include one occurrence each of exceeding the slip limit (sol 983), exceeding the
+tilt limit (sol 151), and entering a keep out zone (sol 163).
+Referencing Figure 25, 16 of the 24 drives that faulted did so due to mobility events. The other 8 non-mobility reasons
+why drives faulted are 1) exceeding the TOD limit, 2) the robotic arm was not stowed, 3) a Multi-Mission Radioisotope
+Thermoelectric Generator (MMRTG) short was detected, 4) a Mast Camera (MastCam) focus mechanism was not
+stowed, 5) the Sample Analysis at Mars (SAM) instrument was not safe for driving, 6) the Chemistry and Mineralogy
+(CHMN) instrument was in use, 7) a RSM error occurred, and 8) a limit on the difference between a VO and rover
+IMU attitude angle was exceeded.
+Responses to non-mobility faults vary, and can change over the lifetime of the mission. Exceeding the TOD limit
+and exceeding the limit on the difference between a VO and IMU attitude angle both stop a drive that is in progress.
+However, the other 6 non-mobility drive faults will prevent a drive from ever starting. The response to a fault can
+also be changed by updating a parameter. For example, there have been 5 occurrences of a MMRTG short preventing
+a drive from starting, the last occurring on sol 1305. On sol 1309, the operations team changed a short response
+Figure 25: Number of expected and unexpected drive faults for the 24 categories of fault protection that have caused
+incomplete drives. The categories are ordered from most numerous (left) to least numerous (right). Eight of the
+categories are from general fault protection (blue) and sixteen are from mobility fault protection (black).
+parameter to “ignore” for all steer and drive actuators, so that subsequent occurrences of the MMRTG short no longer
+prevented a drive. Figure 26 illustrates the temporal distribution of all the drive faults.
+When the RPs simulate a planned drive using a ground tool called Robot Sequencing and Visualization Program
+(RSVP), the predicted odometry of the drive is generated. After the drive is executed, the actual odometry is recorded
+in the downlink telemetry. Figure 27 illustrates the difference between the predicted and actual odometry for the 738
+attempted drives. For most of the drives, the difference between the predicted and actual odometry is close to zero. The
+difference is large where a drive faulted at the beginning of a drive or mid-drive. The difference is negative where the
+rover drove further than predicted. This can happen when a portion of a drive is executed with AutoNav. For example,
+on sol 385, Curiosity drove 141.5 meters, 5 meters further than predicted due to AutoNav avoiding hazardous terrrain
+near the end of the drive.
+The error states from drive faults prevent further driving until they are cleared. A TOD-limit drive fault sets a mobility
+goal error that is automatically cleared so that planned post-drive turns to a rover heading ideal for communications
+and/or wheel straightening occurs. On sol 151, after tripping an expected tilt-limit drive fault, the mobility motion and
+goal errors were automatically cleared and the arm was unstowed. The error states from other drive faults, however,
+required ground-in-the loop to clear the error states before the next drive. Figure 28 shows the number of sols that
+Figure 26: Temporal distribution of all the drive faults for the 24 categories of fault protection that have caused
+incomplete drives. The categories are ordered from most numerous (top) to least numerous (bottom). Eight of the
+categories are from general fault protection (blue) and sixteen are from mobility fault protection (black).
+elapsed before the operations team cleared the mobility error states to enable the next drive. Where there was a TOD-
+limit drive fault, the number of sols is zero since the error state is cleared automatically. For other drive faults, mobility
+error states are cleared in the next drive sequence.
+The four mobility error states are 1) mobility goal error (the drive faulted short of the goal position), 2) mobility motion
+error (mobility fault protection faulted the drive during motion), 3) mobility is precluded (the drive faulted because
+a previous sequence conditional precluded mobility), and 3) DO MOBILITY is false (the drive faulted because there
+was an onboard detected condition that prevented the drive from starting). Because a mobility motion error causes
+a drive to stop short of the goal position, it trips a mobility goal error. An example scenario where a sequence can
+preclude mobility is when there is a two sol plan with arm activities during sol N and mobility activities during sol
+N+1. If the arm sequence fails to stow the robotic arm, it will preclude mobility so that the sol N+1 drive faults before
+it starts. The conditions that cause DO MOBILITY to be false are a mobility goal error, a mobility motion error,
+mobility is precluded, the arm is not stowed, the MAHLI lens cover is not closed, a MastCam focus mechanism is not
+stowed, the CHMN or SAM instrument is in use, or the Chemistry & Camera (ChemCam) instrument is not currently
+in a Sun-tolerant focus range.
+81.0% of mobility fault states are cleared within a sol or two. Drive faults occuring on sols where tactical planning is
+not scheduled (e.g., on a weekend) can lengthen the period before clearing mobility error states. The longest period
+before clearing mobility error states is 12 sols, occurring after the sol 2173 anomaly due to an investigation to identify
+the root cause. Long periods before clearing mobility error states can be due to a change in near-term science plans or
+the proximity to a project stand-down period (e.g., solar conjunction or holidays). After the sol 455 RF steer stall, the
+project decided to perform proximity science with the robotic arm before continuing driving; the mobility goal error
+was cleared 10 sols later. After the sol 102 suspension drive fault, the drive planned for sol 104 was withdrawn late
+in process due to a concern that the planned ﬁnal rover attitude would be less-than-ideal for downlinking telemetry.
+Further driving was delayed until after the approaching Thanksgiving holiday. The mobility motion and goal errors
+were cleared 9 sols after the drive fault.
+Figure 27: Difference between the predicted and actual odometry for each drive sol. For most drives, the difference is
+close to zero.
+7.3 Planned drives that failed due to mobility fault protection
+Real-time human intervention during drives on Mars is not possible due to the latency in uplinking commands and
+downlinking telemetry. Therefore, the ﬂight software was designed to safeguard the rover during all activities, includ-
+ing driving. During a drive, mobility fault protection evaluates rover state at 8 Hz. If any state relevant to driving is
+outside of set limits, a drive fault will occur, stopping the drive. Of the 116 drive faults that have occurred, 63 have
+been due to 16 types of mobility fault protection.
+The operations team has the discretion to alter mobility fault protection limits to match the expectations for the drive.
+For example, if the drive simulation over a 3D terrain mesh shows a suspension angle will exceed its default conser-
+vative setting, RPs will increase the suspension angle limit to be slightly above the maximum simulated suspension
+angle. Many such limits are nominally set somewhat conservatively, and only increased when the traverse simulation
+shows that more complex terrain is expected to be encountered.
+7.3.1 Geometric Hazard Faults
+Unsafe path
+During autonomous hazard-avoiding drives, the terrain is analyzed at each drive step and a safe step that brings the
+rover closer to its goal is selected. But if the path evaluations of all available arcs for a drive step fail to meet the safety
+threshold, an unsafe path fault is declared and the drive is stopped. During a guarded drive, only the most goal-directed
+forward or backward arc is considered and evaluated for safety. A common use case of guarded drives is when the
+desired path would need to cross a small patch of unknown data in the terrain mesh, and the operations team prefers
+to restrict the rover from autonomously discovering a new path (e.g., due to wheel wear concerns). The team will
+Figure 28: Number of sols after each drive fault the mobility error states were cleared, enabling additional driving.
+The mobility error states that prevent driving are a mobility goal error, a mobility motion error, mobility is precluded,
+or DO MOBILITY is set to false.
+position the rover a few meters short of the unknown region, then let the rover evaluate the terrain; as long as it is
+determined by the rover to be safe, the drive will continue. An unsafe path has caused 7 drive faults, 5 during guarded
+driving (sols 963, 1094, 1098, 1828, and 2095) and 2 during AutoNav driving (sols 404 and 671). Figure 29 contains
+the ﬁnal auto-generated terrain World Map from sol 1828 where an unsafe path drive fault stopped the drive 5.7 cm
+short of the navigation goal.
+Rover too close to an obstacle
+During Guarded and AutoNav drives, the rover uses its onboard World Map to determine whether it is safe to drive.
+When building the Guarded or AutoNav portion of a drive sequence, the RPs verify the ﬁrst few meters of terrain
+in the drive direction is safe for driving via visual inspection of downlinked images. The drive sequence ﬁrst primes
+the World Map by processing ECAM images of terrain in front and/or behind the rover (establishing the safety of the
+terrain that will be under the rover when beginning the drive on actually-unknown terrain), then driving 2.5 meters onto
+that initial World Map data so that the 3D shape of the terrain under the wheels is known. Next, the drive sequence
+commands the Guarded or AutoNav drive, which continually processes ECAM images and updates the World Map.
+If an obstacle is too close to the rover in the World Map in the drive direction, and antigoalward driving is disabled, a
+NO PATH drive fault will occur preventing further driving.
+The rover being too close to an obstacle has caused one drive fault on sol 677. After commanding 16.5 meters of
+Directed driving up to a ridge, Curiosity transitioned to AutoNav driving. After generating a World Map, Curiosity
+executed a 2.5 meter Directed drive onto the map and updated it. As illustrated in Figure 30, GESTALT determined
+the ridge in front of Curiosity to be untraversable due to its conservative parameter settings (in response to the wheel
+wear concerns at that time, a 20 cm elevation difference found anywhere within a 2.6 meter inscribed disc would result
+in a red ”untraversable” assessment in the map). To avoid the hazard, AutoNav commanded a sharp 0.5 meter arc to
+the left with a heading change of -28.6◦. The right-most image in Figure 30 shows the proximity of the front wheels
+Figure 29: Final rover-centered, auto-generated terrain World Map (left) and front left HazCam image (right) from the
+sol 1828 guarded drive that faulted with an unsafe path due to the higher terrain tilt ahead of the rover. Curiosity was
+driving in the direction of the bottom left corner of the map. The map size is 10x10 m2 and the resolution of each map
+cell is 40x40 cm2. The red map cells correspond to hazardous terrain or terrain outside of the keep-in zone.
+to the ridge after the drive step completed; a portion of the steered left front wheel is visible on the left side of the
+right-most image. AutoNav determined Curiosity was too close to the hazard to continue and set a NO PATH drive
+fault, which resulted in a mobility goal error. This fault protection category is a safety feature that prevents further
+driving if the rover is too close to an obstacle.
+Figure 30: Sol 677 ﬁnal rover-centered, auto-generated terrain World Map (left), the corresponding left front HazCam
+image (middle), and the left front HazCam image after the next drive step (right). Curiosity was driving to a navigation
+goal in the direction of the left side of the World Map. AutoNav took a sharp turn to the left to avoid the ridge in front
+of it in the middle image. After the drive step, AutoNav determined Curiosity was too close to the hazard to continue
+and stopped the drive 36.8 meters short of the navigation goal. The map size is 10x10 m 2 and the resolution of each
+map cell is 40x40 cm2. Map cells with a color close to red are not traversable.
+7.3.2 Non-geometric hazard (slip-based) faults
+Wheel slip fault protection
+Wheel slip is dependent on terrain tilt and wheel/terrain interactions. Wheel-slip fault protection is enabled by default,
+with nominal limits of 60% for a single occurrence and 40% for two consecutive occurrences. But the operations team
+will change the slip fault protection parameters as appropriate for the terrain and drive objectives, based on experience
+from previous drives and science and engineering team predictions for the planned drive. The allowed slip ratios set
+upper bounds on the rover’s position uncertainty at any given step; that uncertainty inﬂuences how close a planned
+drive can get to an obstacle. Figure 31 contains sol 2086 and 2087 NavCam images of the terrain where the maximum
+Curiosity wheel slip occurred, and Figure 32 shows a visualization of the drive path incorporating VO corrections.
+The sol 2086 forward drive faulted due to excessive wheel slip of 64.8%. Factors in the high wheel slip were a ﬂat
+steep rock under the RR wheel, a ridge in front of the RF wheel, and an uphill rover tilt of 18.1◦. The operations team
+increased the single occurrence slip limit to 90% for the forward drive on the next sol (2087), but that drive faulted
+with excessive wheel slip of 98.7%. On sol 2089, Curiosity successfully escaped the hazard by backtracking 1 meter
+and taking a different route forward. Exceeding the wheel slip limit has caused 11 drive faults on sols 402, 465, 672,
+710, 923, 978, 983, 984, 1703, 2086, and 2087.
+Figure 31: NavCam images of the RM and RR wheels on sols 2086 (left) and 2087 (right). The sol 2087 forward drive
+faulted when 98.7% wheel slip occurred, exceeding the 90% limit set for this drive. No forward progress was made.
+Note that a rock was dragged backward by the RM wheel.
+Keep-out and keep-in zones
+RPs use 2D Keep-out and Keep-in zones to indicate known hazards (including non-geometric hazards like sandy
+terrain) and specify corridors of safety. The onboard mobility software guarantees that the rover will never choose to
+enter any area declared off-limits by the combination of Keep-in and Keep-out zones; any such attempt will raise a
+mobility goal error and cause that command to fail without commanding that motion. When used in combination with
+VO for precise positioning, they enable the rover to stay out of dangerous areas even in the presence of unexpected
+slip. Zones can be speciﬁed as circles, oriented rectangles or triangles. Attempting to violate a keep-in boundary has
+caused 2 drive faults (sols 163 and 324) due to rover slip. As illustrated in Figure 33, the sol 324 drive faulted after 18
+meters of backwards driving as the rover drifted off course towards the boundary of a narrow keep-in zone.
+Figure 32: Visualizing the Sol 2086 drive, which failed due to high wheel slip. The upper image shows the actual rover
+path projected into the “planning mesh,” a visualization of the terrain used by RPs to create drive command sequences.
+Orange lines track the wheel centers, blue lines track the lowest point on the wheel (i.e., ground contact). The lower
+image shows the same data projected into NavCam images taken on sol 2089, after the drive completed. Actual drive
+tracks are visible in the lower image. Images rendered by the rover planning tool RSVP.
+After the initial discovery of the wheel wear problem, a ground-based machine learning terrain classiﬁcation system
+was developed and deployed to assist the operations team in performing their assessment of Keep-out areas (Ono
+et al., 2015). And related work proposes to perform similar analyses as part of onboard processing, e.g. (Angelova
+et al., 2007; Rothrock et al., 2016). But since the science team successfully identiﬁed and selected terrains safer for
+the wheels since then, Keep-out zones have generally been speciﬁed by RPs by hand, based on visual terrain cues
+evaluated by them, their full suite of ground analysis tools, and the Surface Properties Scientist.
+Figure 33: Course plot of the sol 324 drive auto-generated by ground tools for mobility performance assessment.
+The sol 324 drive stopped after 18 meters of backward driving with a keep-in zone violation because mobility fault
+protection determined the next drive step would cause a 2.5 meter radius around the rover to intersect the boundary of
+the green keep-in zone. The red circle with a 2.5 meter radius was overlaid on the course plot to illustrate how close
+the rover was to the edge of the keep-in zone. Grid lines in the map indicate 1 meter spacing.
+VO failure to converge
+The operations team can choose to set a maximum number of allowable VO failures to converge. Setting such a limit
+is a helpful way to bound the amount of position uncertainty that must be evaluated for any given sol’s drive plan (by
+limiting the number of steps that can accumulate unknown and uncorrected slip). Although VO works very well in
+general, it depends on there being enough features detected in the nearby terrain to enable their motion to be tracked. If
+any of its internal sanity checks fails or the terrain lacks sufﬁcient features, it can fail to converge, e.g., as in Figure 34.
+The largest number of failures that have occurred on a single sol is 11 (sol 2434). The 11th VO failure caused a
+mobility goal error to be declared and the drive to stop due to the VO failure limit of 10 having been exceeded. VO
+failures have caused 5 drive faults on sols 1035, 1042, 2304, 2434, and 2447.
+Figure 34: NavCam VO image and overall drive path from sol 2434 on terrain with a lack of autonomously detectable
+and trackable features. The max number of VO failures in a single drive (11) occurred here. Low expected wheel slip
+on this terrain, and a lack of hazards near the planned path, led the RPs to set the max allowable number of VO failures
+to a high number. The max wheel slip measured during the drive was 13.5%. The yellow points show the path taken
+by the rover origin, plotted in a planning NavCam image taken two sols before the drive.
+7.3.3 Reactive Mobility Faults
+Suspension fault protection
+Curiosity uses a passive rocker-bogie suspension system (Bickler, 1998). The angles measured by that system are
+determined by the interaction of the rover with local terrain. When drives are planned in the RSVP tool, simulated
+suspension angles are determined by “settling” the rover onto the simulated terrain. RPs then interrogate that series
+of simulated angles to determine the minimum and maximum angles expected to be encountered on a given drive. If
+the actual angles were to exceed those bounds, that would indicate a mismatch with the plan (e.g., that the rover has
+drifted off course, or that the simulated terrain wasn’t a good match for the actual terrain). So every drive sol includes
+an updated set of min/max suspension angles that are anticipated for the drive; should any angle fall outside those
+bounds, a motion error will be raised.
+Curiosity suspension angles up through sol 2488 are shown in Figure 35. The max bogie and differential angles
+experienced by Curiosity are 25.2 and 9.4 ◦, respectively. The nominal ﬂight bogie and differential angle limits are
+17 and 7◦, respectively. Exceeding a suspension limit has caused thirteen drive faults on sols 102, 713, 1053, 1066,
+1110, 1296, 1376, 1438, 1471, 1485, 1664, 1684, and 1751. During the suspension limit fault on sol 1751, illustrated
+in Figure 36, the right bogie reached an angle of 17.5◦out of an allowable 17◦as the RM wheel climbed a tall rock.
+Since the suspension system is passive, it is possible for a middle or rear wheel to lift off the terrain for a prolonged
+amount of time, if sufﬁcient tension has built up in the suspension. For example, on sol 313, the LM wheel popped a
+wheelie during the ﬁnal drive command to straighten the front and rear wheels. During that command, the left bogie
+angle increased 11.9◦, lifting the LM wheel off the terrain. On sol 317, the LM wheel was driven while still in a
+wheelie and the no load current was determined to be approximately 0.16 A.
+TRCTL includes a wheelie suppression algorithm that watches for consistently growing bogie suspension angles above
+a threshold with a corresponding wheel that requires little current to turn. If this is detected, the speed of the other
+wheel on the bogie is adjusted to correct the condition and maintain six wheels in contact with the terrain. By default,
+the TRCTL wheelie suppression algorithm is enabled when TRCTL is enabled (Toupet et al., 2020).
+Figure 35: Curiosity suspension angles during the ﬁrst seven years of the mission. The plot illustrates the passive
+suspension constantly reacts to the terrain proﬁle, which has not been planar.
+Pitch and roll fault protection
+As with the suspension fault protection, when drives are planned in the RSVP tool, simulated pitch and roll angles are
+determined by “settling” the rover onto the simulated terrain. RPs then interrogate that series of simulated angles to
+determine the minimum and maximum angles expected to be encountered on a given drive. If the actual angles were
+to exceed those bounds, that would indicate a mismatch with the plan (e.g., that the rover has drifted off course, or that
+the simulated terrain wasn’t a good match for the actual terrain). So drive sols may include a set of min/max pitch and
+roll angles that are anticipated for the drive; should any angle fall outside those bounds, a motion error will be raised.
+These are not always enabled (though Tilt fault protection is always enabled), generally these are only used when a
+particular pitch or roll is important to the drive (e.g. when approaching terrain with an abrupt slope change).
+Curiosity pitch and roll angles up through sol 2488 are shown in Figure 37. Rover pitch and roll are measured in a local
+level frame where x is forward, y is to the right, and z is down. Therefore, positive pitch corresponds to the forward
+side of the rover moving upward and positive roll corresponds to the left side of the rover body moving upward. The
+max absolute values of pitch and roll angles experienced by Curiosity are 25.22 and 20.69◦, respectively. Rover pitch
+and roll fault protection are disabled by default, but can be enabled on a drive-by-drive basis. The nominal ﬂight pitch
+and roll limits are +/-15◦. Pitch fault protection has been enabled on seven sols (817, 1035, 1037, 1049, 1051, 1262,
+and 1371). Roll fault protection has been enabled on two sols (1260 and 1311). Exceeding the rover pitch min or max
+limit has caused two drive faults on sols 1049 and 1262. During the pitch limit fault on sol 1049, illustrated in Figure
+38, the rover pitch angle reached an angle of 15.19◦out of an allowable maximum of 15◦as the rover climbed a ridge.
+Figure 36: NavCam image acquired after the sol 1751 drive faulted when the right bogie angle exceeded the bogie
+limit of 17◦due to the RM wheel (in the center of the image) traversing a tall rock. The RR wheel is to the right of the
+image.
+Figure 37: Curiosity pitch and roll angles during the ﬁrst seven years of the mission. The max absolute values of pitch
+and roll angles experienced by Curiosity are 25.22◦and 20.69◦, respectively. Rover pitch and roll fault protection are
+disabled by default, but can be enabled on a drive-by-drive basis. When enabled, the pitch and roll limit for a drive
+is typically set to slightly higher than the max pitch and roll of the simulated drive. There have been no drive faults
+due to the roll limit. Exceeding the pitch limit has caused drive faults on two sols (1049 and 1262). The pitch limit on
+those sols were 15.0◦and 6.0◦, respectively.
+Tilt fault protection
+The rover tilt, which is the angle between the rover body z axis and the gravity vector, is estimated from onboard
+accelerometers for the purpose of tilt fault protection. Accelerometer data is noisier than the integrated gyroscope
+measurements used for nominal attitude estimation, but since it is a direct measurement, it is not subject to long-term
+accumulated bias. Curiosity tilt angles up through sol 2488 are shown in Figure 39. The max tilt angle experienced
+Figure 38: Front HazCam image acquired after the sol 1049 drive faulted when the rover pitch angle exceeded the
+max limit, which was set to 15◦.
+by Curiosity is 25.34◦. Tilt fault protection is enabled by default, and the nominal ﬂight tilt limit is 30 ◦. However,
+the tilt limit is typically lowered for each drive, based on the max predicted tilt experienced in the simulation of the
+planned drive. Exceeding the tilt limit has caused three drive faults. During the tilt limit fault on sol 472, illustrated in
+Figure 40, the rover tilt angle reached an angle of 12.3◦, exceeding the allowed maximum of 12◦over 4 contiguous 8
+Hz samples, as the rover drove uphill. The maximum rover tilt that was expected from the simulation of the drive was
+8◦.
+Yaw fault protection
+Curiosity yaw angles up through sol 2488 are shown in Figure 41. Rover slip can cause signiﬁcant changes in the rover
+heading, particularly if the slip mostly occurs on the wheels on one side of the rover during open-loop arc motions.
+Setting upper and lower limits on the expected yaw for each leg of a drive enables such slip to be detected quickly
+by the onboard attitude estimator, stopping the drive as soon as the limit is exceeded. Exceeding the yaw limit has
+caused 4 drive faults on sols 676, 683, 1689, and 1789. The sol 676 and 1789 yaw-limit drive faults occurred while
+driving on sandy terrain. The sol 683 yaw-limit drive fault occurred when AutoNav caused the rover to make a turn
+to avoid an obstacle. (AutoNav is not aware of the yaw limits.) The sol 1689 yaw-limit drive fault was caused by an
+operations failure to properly set the yaw limits in the drive sequence. Figure 42 illustrates the sandy terrain where
+wheel slip caused a 30◦change from the desired rover heading on sol 1789. Unintended yaw can also occur when
+driving on rocky terrain, for example, if a wheel slips off a rock; if one or more rocks move while being traversed; or
+if a part of the wheel above ground interacts directly with the terrain (e.g. scraping a rock it passes, or passing through
+a nearly-wheel-sized rut).
+Actuator stalls
+On seven occasions, Curiosity has experienced a stall condition of either a steering motor or wheel motor. This occurs
+when the motor stops turning prior to reaching its commanded position. Like all mobility faults, this will stop further
+Figure 39: Curiosity tilt angle during the ﬁrst seven years of the mission. The max tilt angle experienced by Curiosity
+was 25.34◦, occurring on sol 2477. The tilt limit for each drive is typically set to slightly higher than the max tilt of
+each simulated drive. Exceeding the tilt limit has caused drive faults on three sols (151, 309, and 472). The tilt limit
+on those sols were 6.9◦, 12.0◦, and 12.0◦, respectively.
+driving until a command is sent to re-enable mobility. Wheel interactions with rigid terrains can cause this condition,
+as well as possibly a motor under-producing required torque due to inaccurate current control or incorrect motor
+commutation, should there have been motor backdriving when its relative encoder was previously not monitored. This
+has occurred on sols 295 (RF steer), 333 (LR steer), 455 (RF steer), 1267 (RR drive), 1843 (RR steer), 2003 (RM
+drive), and 2051 (RR steer).
+A related fault condition is “slow overcurrent,” where a motor is consistently drawing more current than usual for a
+longer period of time, and may be overheating or adversely interacting with soft terrain. This would still be below the
+instantaneous current limit for the motor, which may be needed and is not a problem for a short amount of time. This
+condition has only occurred once on sol 1616, when the RR steering current exceeded the current limit of 2.5 A for 2
+seconds, resulting in a RR steering stall.
+7.3.4 Goal Error Faults
+Command timeout
+A duration limit can be set on individual mobility commands. If the command execution exceeds the duration limit,
+the drive is stopped with a motion error. Duration limits can prevent a turn-in-place from executing indeﬁnitely while
+the wheels are slipping and embedding. As illustrated in Figure 43, exceeding the duration limit for a turn-in-place
+command has caused 1 drive fault (sol 711). Other duration limits that have caused drive faults are exceeding the
+duration limit during execution of 1) an arc with TRCTL enabled (sol 1786), and 2) a go to waypoint motion (sols 426
+and 896).
+Figure 40: Front HazCam image acquired after the sol 472 drive faulted when the rover tilt angle exceeded the max
+limit, which was set to 12◦.
+Figure 41: Curiosity raw yaw angles (left) and continuous yaw angles (right) during the ﬁrst seven years of the
+mission. North corresponds to a heading of 0◦. Increases in heading corresponds to turning to the right and decreases
+in heading corresponds to turning to the left. From sol 546-671, driving was predominantly backwards. During that
+period, the continuous yaw plot reﬂects a preference to turn to the right to avoid occlusions from the rover when
+acquiring post-drive images from the NavCams for planning the next drive. The cumulative turning performed by
+Curiosity is equivalent to 6.3 revolutions to the right.
+Limit Cycle
+A Limit Cycle fault is raised whenever the rover commands a relatively large amount of motion (e.g., 4.5 meters), yet
+only achieves a much smaller amount of progress in Euclidean distance (e.g., 2 meters). Originally developed as a
+way to stop the rover from driving back-and-forth again and again during autonomous hazard-avoiding drives, it had
+Figure 42: Rear HazCam image acquired after the sol 1789 drive. The RR wheel is visible in the image. High slip in
+sand caused Curiosity to exceed a 149.265 +/- 30◦yaw limit, faulting the drive.
+Figure 43: Sol 711 NavCam image of the RM and RR wheel after a turn-in-place command timed out. According to
+IMU data, the turn slip was 40.4%.
+been left enabled during the very slippery drive through the polygonal ripple sands of Hidden Valley on sol 709 (see
+Figure 44). On that drive the rover encountered very high slip (45% growing to 77.5% over seven steps), resulting in
+very slow progress, and that triggered the only instance of the Limit Cycle fault thus far. Although this demonstrates
+Limit Cycle can function as a wheel slip detector, we have since relied on the Fast and Slow Slip fault behaviors
+instead.
+On sol 710, we continued to try to drive through the polygonal ripple sands at Hidden Valley. After commanding over
+17.35 meters but only achieving 7.78 meters of actual motion, the drive faulted because the Slow Slip limit of 70% was
+exceeded on ﬁve consecutive drive steps. During excessive slip, there is a risk of excessive wheel sinkage. There are
+no sensors onboard Curiosity that can measure wheel sinkage directly; wheel sinkage is estimated by the operations
+team through inspection of images of the wheels. On sol 711, the robotic arm was unstowed and under-belly MAHLI
+images of the wheels were captured to assess wheel sinkage. Figure 45 contains a MAHLI image of the RM and RR
+wheels. Approximately 7 grousers are embedded in sand on each wheel, which corresponds to approximately 9 cm
+wheel sinkage.
+Figure 44: NavCam VO images of wheel tracks from sol 709. The commanded drive distance between the left and
+right image was 2 meters, but the actual distance covered was 0.54 meters. Because Curiosity was not making enough
+progress towards the navigation goal, a limit-cycle drive fault was declared. During the ﬁnal step of the drive, the
+wheel slip was 77.5%, below the 90% single occurrence limit set for this leg of the drive.
+Previous Drive Failure
+When multiple drives are planned without ground in-the-loop in between the drives, if the ﬁrst drive ends with a fault,
+the additional planned drives are precluded. Multiple drives without ground in-the-loop between them can be planned
+on a single sol or over multiple sols (e.g., over a non-planning weekend or holiday). There have been two occurrences
+of this type of drive failure. The sol 296 and 456 drives were precluded because the drives on the previous sols ended
+early with a RF steer stall.
+8 Actuator Health
+The qualiﬁed life cycles for the WSAs is 15,000 revolutions (i.e., revolutions for 1x life). During MSL pre-launch
+testing at JPL, a WSA was tested to 2x life, disassembled and inspected, and no failure was observed. Figure 46 shows
+the total number of actuator revolutions for each WSA onboard Curiosity.
+The six drive actuators are independently controlled. The maximum number of Curiosity drive actuator revolutions has
+ranged from 15,253.0 to 15,716.4 revolutions, slightly above 1x life of 15,000. Note that the middle drive actuators
+have experienced slightly fewer revolutions than the front and rear drive actuators. Because the middle wheels are
+Figure 45: On sol 711, an under-belly MAHLI image of the wheels was acquired to assess wheel sinkage.
+closer to the instantaneous center of rotation than the front and rear wheels, they revolve less during turns-in-place and
+non-straight arcs.
+The four steer actuators are also independently controlled and have a hard limit of +/-95◦and a software limit of +/-85◦,
+both of which are measured as angles from the rover’s longitudinal axis. Steering is performed much less frequently
+than driving. The number of Curiosity steering actuator revolutions has ranged from 596.7 to 643.8 revolutions,
+approximately 3.8% of their 1x life. The numbers of revolutions for the rear steering actuators are slightly less than
+the front steering actuators. Since the rear wheels are closer to the middle wheels than the front wheels, they steer to a
+slightly smaller angle than the front wheels during a turn-in-place.
+For each drive and steer step, ﬂight software calculates the motor current mean and standard deviation over all 64
+Hz samples from each WSA and records it in mobility telemetry. In Table 9, the middle column contains the mean
+of the current mean for each drive and steer step, and the right column contains the mean of the current standard
+deviation for each drive and steer step. These values are in comparison to the approximate no load current of 0.16 A,
+measured on sol 317 while the LM wheel was in a wheelie state. It is not surprising that the rear-wheel drive currents
+have been higher than the other drive actuators, given that most Curiosity’s driving has been uphill in the forward
+direction. The number of RF drive steps is larger than the other drive actuators because the RF wheel has been used to
+scuff terrain on several sols (e.g., sols 57, 799, 1221) in preparation for below-the-surface imaging and Alpha Particle
+X-Ray Spectrometer (APXS) measurements.
+As of sol 2488, we have experienced 2 drive actuator stalls (sols 1267 and 2003) and 6 steer actuator stalls (sols 295,
+333, 455, 1616, 1843, and 2051). The most recent three steer stalls have occurred on the RR steer actuator, likely
+a coincidence since there have been no further stalls over the last 437 sols. As shown in Figure 47, the max current
+during all WSA stalls was under 4.0 A. As shown in Figures 48 and 49, over all drives, the maximum drive and steer
+actuator currents have been 4.422 and 3.594 A, respectively, well below the 10 A max current rating for the WSA. The
+low number of steer actuator revolutions leads to high conﬁdence in their continued usage for years to come. There is
+also conﬁdence in the continued usage of the drive actuators for years to come, given the successful test of a WSA to
+2x life without any failure,
+Figure 46: Drive and steer actuator revolutions as of sol 2488. DLF=drive left front, DLM=drive left middle,
+DLR=drive left rear, DRF=drive right front, DRM=drive right middle, DRR=drive right rear, SLF=steer left front,
+SLR=steer left rear, SRF=steer right front, SRR=steer right rear.
+Table 9: Average motor current and current standard deviation for each WSA.
+Actuator Mean of current mean for each step (A) Mean of current stddev for each step (A)
+LF drive 0.317 (N=20778) 0.187 (N=20778)
+LM drive 0.298 (N=20777) 0.168 (N=20777)
+LR drive 0.345 (N=20778) 0.188 (N=20778)
+RF drive 0.323 (N=20787) 0.189 (N=20787)
+RM drive 0.275 (N=20778) 0.162 (N=20778)
+RR drive 0.361 (N=20778) 0.191 (N=20778)
+LF steer 0.253 (N=6981) 0.170 (N=6981)
+LR steer 0.239 (N=6977) 0.163 (N=6977)
+RF steer 0.246 (N=6988) 0.164 (N=6988)
+RR steer 0.252 (N=6981) 0.169 (N=6981)
+9 Wheel Health
+On sol 490, the MSL team discovered a mission-threatening amount of damage to the rover wheels. As the rover had
+only driven 4.6 km of its 20 km design goal, it led to an investigation to understand and reduce the rate of damage in
+order to increase the longevity of the mission. Initial damage was found to be related to the interaction of previously-
+unseen terrain exhibiting small, sharp embedded rocks with the drive control mode of constant-speed six wheel drive
+actuators and the kinematics of the rocker-bogie suspension. Wheels leading a suspension pivot were forced onto the
+sharp, immobile surfaces by the other wheels as they maintained their commanded angular velocities (Arvidson et al.,
+2017a).
+Figure 47: Each max actuator current measured during the 2 drive actuator stalls and 6 steer actuator stalls was always
+less than 4.0 A, well below the 10 A max current rating for the WSA. There have been no front drive actuator stalls
+during the mission. During the 435 sols prior to sol 2051, there were three RR steer stalls, but no RR steer stalls have
+occurred over the last 437 sols.
+In response, a new algorithm known as TRCTL was developed (Toupet et al., 2020). It adapts each wheel’s speed to
+ﬁt the terrain topography in real-time, by leveraging the rover’s measured attitude rates and rocker/bogie suspension
+angles and rates. When one wheel is going over a rock, the remaining wheels reduce their speed in order to not push
+or pull the rock-climbing wheel into the rock, reducing the forces on the wheel. On sol 1678 (April 24, 2017), TRCTL
+was approved for nominal use on Curiosity.
+Figure 50 illustrates the usage of TRCTL since its approval for nominal use on Curiosity. Since sol 1678, 99.48% of
+the total odometry has had TRCTL enabled, and 93.75% of drive sols have had TRCTL enabled for at least a portion of
+the drive. Most of the non-TRCTL odometry since sol 1678 is from ten 1.256 meter drives (on sols 1682, 1730, 1798,
+1887, 1989, 2030, 2115, 2296, 2407, and 2457) to capture MAHLI images of the entire surface area of the wheels
+in ﬁve equally spaced positions for wheel damage assessment. For those drives, TRCTL is disabled so each wheel
+turns the same amount, regardless of the proﬁle of the terrain below the wheels. On sol 1800, TRCTL was disabled
+for 10.09 meters of the drive on terrain similar to where the sol 1786 TRCTL timeout occurred. Overall, 23.31% of
+Curiosity’s odometry has been achieved while TRCTL was enabled. Table 10 summarizes TRCTL usage on Curiosity.
+The images of the RM wheel in Figure 51 and the LM wheel in Figure 52 illustrate the damage done to the wheels
+since sol 490, including two grouser breaks on LM and one on RM. The new algorithm has empirically demonstrated
+reduction of wheel damage rates as predicted, at the cost of increasing drive duration by 10% on average and roughly
+doubling the drive motor history data volume.
+One of the concerns of wheel damage is the possibility a shard of wheel skin could cut into the electrical cable to a
+drive actuator, causing the drive actuator to become uncommandable. The images in Figure 52 provide a good view
+of the path of the electrical cable to a drive actuator. Although it is theoretically possible that a section of wheel skin
+could crack along its neighboring grousers and bend inward far enough to reach the cable, it is considered a highly
+unlikely scenario. Inward-pointing ﬂaps of wheel skin tend to break off long before they reach any signiﬁcant length.
+Figure 48: Max drive actuator currents per drive sol. Startup current during commutation for the ﬁrst drive actuator
+usage on each drive sol is shown in gray. Max drive current on each drive sol due to wheel interaction with the terrain
+is shown in red, with a blue dot at the top of each red line.
+Finite element analysis indicates that a ﬂap of wheel skin long enough to reach the electrical cable would break off
+before it can cut the cable.
+Testing conducted in the JPL Mars Yard without TRCTL software predicted a rate of grouser breaks that could result
+in unconstrained portions of the wheel contacting the electrical cable to its drive actuator some 20 km after the ﬁrst
+grouser break occurred, shown in Figure 53. Based on that model, after accumulating 5 km beyond the ﬁrst grouser
+Figure 49: Max steer actuator currents per drive sol. Startup current during commutation for the ﬁrst steer actuator
+usage on each drive sol is shown in gray. Max steer current on each drive sol due to wheel interaction with the terrain
+is shown in red, with a blue dot at the top of each red line.
+Figure 50: Since TRCTL was approved for nominal use on Curiosity on sol 1678, 99.48% of Curiosity’s odometry
+has been with TRCTL enabled.
+break, 4 grouser breaks were expected on a single wheel. However, as of sol 2488 and 5 km since the ﬁrst grouser
+break on Mars, the number of breaks on the LM wheel is only 2 and on the RM wheel only 1. Both of the grouser
+Figure 51: The single grouser break on the RM wheel is on grouser 12. It is visible from NavCam views of both sides
+of grouser 12, but not from an overhead view of grouser 12. Image Credit: NASA / JPL-Caltech / MSSS.
+Table 10: Terrain-Adaptive Wheel Speed Control Usage Statistics
+Pre-TRCTL (sol 0000-1677) Post-TRCTL (sol 1678-2488)
+Mobility sols with some odometry 502 4 (TRCTL disabled)
+199 (TRCTL enabled)
+9 (both)
+Odometry (meters) 16,323.9 26.0 (TRCTL disabled)
+4,968.5 (TRCTL enabled)
+Grouser breaks 2 1
+TRCTL drive faults N/A 1
+breaks on the LM wheel occurred prior to nominal use of TRCTL on Curiosity. Additional testing has shown that
+Curiosity could continue to drive indeﬁnitely on the portion of a wheel that remains when all the grousers on a wheel
+breaks, if the unconstrained portion of the wheel can be safely shed (Graser et al., 2020).
+Overall the wheel health has been improved by several strategic updates: 1) Our science team was able to reinterpret
+orbital data to predict which terrain types were likely to include the small embedded rocks, enabling the replanning of
+strategic mobility routes to minimize our interactions with such terrain, 2) The adoption of the new TRCTL control
+Figure 52: MAHLI images of the LM wheel from sol 490 (left) and sol 1641 (right). Two grouser are visibly broken
+in the image from sol 1641. These images provide a good view of the path of the electrical cable to a drive actuator.
+Image Credit: NASA / JPL-Caltech / MSSS.
+strategy to mitigate those times when we must drive on such terrain, and 3) Updating our tactical (daily) assessment
+of nearby terrain to try to minimize driving over small embedded rocks.
+10 Risks to Continued Mobility Success
+Curiosity’s mobility system has performed admirably during these ﬁrst seven years, but we are mindful of the potential
+for future problems. Curiosity has already lost the use of its drill feed actuator, and both the Spirit and Opportunity
+rovers eventually lost the use of one or more motors during their very-extended missions (Spirit lost use of its RF drive
+motor, Opportunity its RF steer motor and arm shoulder motor). In this section we describe some of these potential
+issues and the mitigation strategies we have either adopted already or stand ready to adopt when needed, all of which
+are summarized in Table 11.
+Power Curiosity is powered by a MMRTG, which produces electricity from the decay of plutonium. Over time the
+MMRTG produces less power, which will limit how far Curiosity can drive per sol and/or how frequently Curiosity
+can drive during any additional extended missions. Fortunately, power can be accumulated in the onboard batteries
+so the primary impact will be in longer necessary recharge times, rather than outright loss of capability. Also, future
+software improvements are planned to increase the VO Full drive speed, which will help enable continued driving
+while using less power for computing and inertial sensing.
+Unsafe TerrainSeveral layers of mobility fault protection prevent Curiosity from driving on unsafe terrain. On Earth,
+Strategic mobility planning teams uses Mars Reconnaissance Orbiter (MRO) HiRISE imagery to recommend routes
+around hazardous terrain, often planning weeks or months ahead, taking science goals into account while keeping the
+rover safe. MRO altitude ranges from 255 to 320 km; at an altitude of 300 km, the resolution of HiRISE imagery is
+0.3 meter/pixel. Tactical RPs plan each sol’s drive using a high resolution terrain mesh generated from the NavCam
+images acquired earlier, usually at the end of the previous drive. The tactical plan may deviate from the strategic plan in
+order to avoid hazards identiﬁed in the higher quality images and terrain mesh. Additionally, the onboad software also
+guards the rover against entering unsafe terrain by continuously running dozens of reactive safety checks, using VO
+to keep the rover well localized relative to human-speciﬁed keep-in and keep-out zones, and performing traversability
+analysis to evaluate path safety.
+Figure 53: Number of grouser breaks on each wheel, measured since the ﬁrst grouser break. Thus far, only the left
+middle and right middle wheels have grouser breaks. GB = good blue terrain, i.e., relatively benign terrain. Given a
+terrain difﬁculty assessment of the 5 km of driving since the ﬁrst grouser break has not been conducted, the lower-
+than-predicted grouser break rate could be due in part to driving over more benign terrain than predicted.
+Permanent Failure of a Mobility Motor or Brake As the age and usage of the drive and steer actuators increase,
+the risk of an actuator failing to respond to commands increases as well. Opportunity’s RF steer actuator stopped
+responding to commands on sol 433, leaving it permanently toed inward approximately 7◦. Mobility was still possible
+for Opportunity until the end of its mission even though the RF wheel was not steered optimally. Spirit lost its RF
+drive motor, making that wheel something like an anchor, but driving continued albeit with much less capability. For
+Curiosity, the ability to turn and drive with a single disabled WSA has been veriﬁed on a testbed rover: an MSL wheel
+backdrives more readily than a MER wheel, as long as its mechanical brake still opens.
+Each drive and steer motor has an associated toothed mechanical brake that engages against the motor shaft to prevent
+motor backdriving when not actively controlled. This prevents, for example, rolling down a hill after a motion com-
+mand completes. There is no direct sensing that a brake is actually disengaged, though the operations team monitors
+brake current as an important indicator of brake health. If a brake were to unexpectedly fail to disengage, the corre-
+sponding motor would stall, tripping a drive fault as the motor cannot drive through a closed brake. If a drive actuator’s
+mechanical brake were ever deemed to have permanently failed closed, the corresponding motor would be disabled,
+and that wheel would effectively become an anchor (similar to Spirit), even if its motor were still healthy. However,
+if a drive motor is disabled but its associated mechanical brake still opens, overall driving should still be better than
+what Spirit experienced, since the wheel would be backdrivable, turning roughly half as much as the still-functioning
+wheels (very roughly speaking and depending on the terrain). Mobility would generally be severely compromised if
+two or more drive motors are disabled, however, even if their mechanical brakes still open.
+Camera Failure All of Curiosity’s ECAMs are used for onboard hazard detection, and the NavCams are used for VO.
+If an ECAM should fail, backup pairs do exist, and all have already been used successfully. However, each camera
+pair is tied to a particular main computer; RCE-A has access to one set of ECAMs, and RCE-B has access to the
+other set. Switching to backup cameras will therefore require switching RCE computers too. But currently the RCE-A
+computer is experiencing problems with its NAND ﬂash memory, and although a new ﬂight software version is under
+development (to shift its ﬁle system to use the smaller amount of still-available NOR ﬂash memory), mobility will not
+initially be supported under that version of ﬂight software on RCE-A. So other options for repurposing cameras would
+have to be explored in the near term.
+Wheel Sinkage Some wheel sinkage is inevitable when driving on sandy terrain. However, if the sinkage continues
+unchecked, it could lead to wheel embedding. Wheel embedding recovery can require signiﬁcant effort. For example,
+when Opportunity encountered a soft sand ripple on sol 446 and high wheel slip and sinkage resulted in embedding,
+it took more than ﬁve weeks to extricate the rover (Maimone et al., 2007a). The MER Spirit rover also experienced
+wheel embedding at Troy on May 1, 2009, but its 8 month recovery effort was ultimately unsuccessful.
+Fortunately, there are several layers of protection for preventing wheel sinkage from continuing unchecked. RPs select
+drive routes that limit driving through sandy terrain, particularly at high rover tilt angles. VO is performed every drive
+step in sandy terrain and fault protection will stop the drive as soon as excessive wheel slip is detected. The VO Auto
+mode also provides additional safety checks even when VO is not active, monitoring overall average current (triggering
+a VO-enabled slip check when the average wheel motor current increases beyond a parameterized threshold set a bit
+above the expected current draw for non-embedded driving), turn rate, and other cues that autonomously activate VO
+and generate slip measurements when needed. This was proven effective during the sol 672 drive, during which VO
+Auto mode autonomously detected the embedding via the average current check and ran a slip check which then halted
+the drive, enabling a single sol recovery.
+The average current check was ﬁrst implemented in MER ﬂight software after Opportunity got stuck in the Purgatory
+ripple, as a ﬁlter that only checked readings spanning each single mobility command. It was later reﬁned to its
+current MSL multiple-command-spanning average current window implementation based on improvements described
+in (Gonzalez and Iagnemma, 2017).
+And while it is true that there is no onboard sensor that directly measures the amount of wheel sinkage, it is monitored
+in post-drive images by the MSL Operations Mobility subsystem team.
+Unknown Conditions Fault protection prevents Curiosity from driving under known unsafe conditions. For example,
+driving will stop whenever the Surface Attitude, Positioning, and Pointing (SAPP) current attitude knowledge becomes
+unknown, since that could result in driving off-course onto unsafe terrain. However, while there is always a risk that
+an unpredictable anomaly or circumstance occurs that results in unsafe driving conditions not identiﬁed during ﬂight
+software development and directly protected against with fault protection, this likelihood is deemed low given our
+development program, testing, and experience driving on Mars so far.
+Wheel Damage The discovery of wheel damage has led to a reduction in the average drive distance. There is concern
+that once a wheel has the majority of its grousers broken, a shard of wheel skin could reach and cut into the cable
+running between the MCA and the drive actuator, causing the loss of the ability to command that actuator. We have
+several layers of protection in slowing the rate of wheel damage and monitoring hazards to the cable. The Strategic
+Mobility team plans routes to minimize exposure to wheel-damaging terrain. RPs plan drives that limit exposure to
+nearby small rocks that cause wheel damage. In addition, the use of TRCTL has been shown to reduce the overall
+wheel damage rate. The current state of wheel damage is monitored in images of the wheels acquired every 500 meters
+of driving, and initial testing has shown that it is even possible to shed a heavily damaged portion of a wheel that may
+cause risk to the drive actuator cable.
+Wheel Entrapment Wheel entrapment could occur if one or more wheels become trapped on embedded rocks. For
+example, on sol 2087, the rover was pitched up 18◦and made no forward progress because of a steep rock in front of
+the RR wheel. Fortunately, Curiosity was able to recover on sol 2089 by backtracking 1 meter and taking a different
+route forward. Several of our operations processes guard against wheel entrapment. On Earth, RPs select routes that
+limit driving over closely spaced rocks that appear to be embedded; this includes simulating multiple candidate drives
+over the terrain mesh. Although entrapment is not directly modeled in the simulation, the RPs can visualize wheel
+placement among rocks and choose a route that stays clear of such dangers. In addition, onboard fault protection
+modes (e.g., slip checks, wheel current limits) will stop a drive before wheel entrapment.
+Figure 54: A 50 cm tall rock with a length of approximately 0.68 meters became wedged between the RF and RM
+wheels of the MSL Dynamic Test Model rover while driving backward over the rock.
+Rock Wedged between Two Wheels Curiosity’s passive suspension system is subject to the risk of bad interactions
+with rocks that could perfectly jam inside it. While the distance between the front and middle wheels depends on
+the suspension angles, the minimum distance, which occurs when the rover is on a planar surface, is 0.685 meters.
+The distance between the middle and rear wheels is ﬁxed at 0.575 meters. During mobility validation testing in the
+JPL Mars Yard with the MSL Dynamic Test Model (DTM) rover, a rock with a length of approximately 0.68 meters
+became wedged between the RF and RM wheel, and while it did not cause an actuator stall, it did cause tears in the
+RM wheel skin (Figure 54). If Curiosity encountered a scenario where a rock becomes wedged between a front and
+middle wheel or a middle and rear wheel, recovery attempts could result in recurrent actuator stalls and additional
+damage to the already heavily damaged LM, RM, and LF wheels, and may ultimately be unsuccessful.
+Although rocks that can cause wheels to become wedged are not directly modeled in simulation, the RPs can visualize
+wheel placement among rocks and choose a route that stays clear of such dangers. Other mitigations for avoiding such
+a scenario are the use of keep-in and keep-out zones, AutoNav, and suspension angle fault protection. None of these
+mitigations were used in the test in Figure 54. AutoNav would have avoided the rock due to its relative height and
+default suspension limits would have caused the drive to stop prior to the rock becoming wedged between the two
+wheels. A rock would need to have a height greater than the wheel radius (25 cm) to become wedged between two
+wheels. During AutoNav with default suspension limits, one scenario where a rock could become wedged between the
+bogie wheels is if the rock had a width of 0.575 meters and a relative height of 25-33 cm. Because of the mitigations
+used on Mars and a particular rock width and height is required, this scenario is considered unlikely to occur.
+Tip Over Curiosity can withstand an overall static tilt of up to 45 ◦in any direction without tipping over. Should it
+occur, rover tip over would be a mission ending event. However, given that 1) the rocker-bogie suspension system
+keeps the rover body relatively level while driving over rocks and undulating terrain, 2) RPs avoid driving in high tilt
+areas, and 3) fault protection will stop a drive if the maximum expected tilt for any drive is exceeded, the likelihood of
+rover tip over occurring is very low.
+High Centering If a rover drives over a tall, embedded rock and the leading wheels descend into a terrain depression,
+the rover’s belly pan could potentially contact the rock such that the rover cannot make progress in either direction.
+Such a condition is called high centering. If any of the rover wheels are on sandy terrain, wheel sinkage may occur
+during recovery efforts, exacerbating the condition.
+High centering could also occur during driving on soft terrain, where excessive wheel slip causes progressive wheel
+sinkage. Although driving over sand ripples can result in slow progress due to signiﬁcant wheel slippage and excava-
+tion, the likelihood of Curiosity becoming stuck from high centering while driving normal to the ripple crest is low,
+due to the angle of repose of the sand. During a three-day Scarecrow test campaign at Dumont Dunes (Mojave Desert,
+California) on sand dunes of varying height (up to 2.1 meters), there was no case of high centering that Scarecrow was
+unable to escape (Heverly et al., 2013).
+To minimize the risk of high centering, RPs select routes that avoid driving over tall rocks and sand dunes, and
+also limit driving through sandy terrain. Onboard capabilities that prevent high-centering include the use of keep-in
+and keep-out zones to ensure it avoids human-identiﬁed hazards even in the presence of slip, and geometric Hazard
+Detection to detect and avoid such hazards encountered in previously-unseen areas.
+Suspension Hardware Failure Mechanical and electrical suspension failures are risks to continued mobility success.
+On the Scarecrow Testbed rover (Heverly et al., 2013), it was discovered that fasteners on the Side Differential Pivot
+became loose over time. One possible explanation is that there was no evidence of the expected thread locking
+compound on the fasteners. Curiosity’s CDP has a similar close-out plate and is secured with 16 fasteners. But
+Curiosity assembly records have conﬁrmed that proper torque levels and thread locking features were used. Still, even
+though the likelihood of the CDP fasteners coming loose is low, Curiosity’s CDP is imaged annually and fasteners are
+inspected for changes.
+If a suspension resolver fails in such a way that we do not even want it powered on, that resolver can be disabled by
+setting a parameter. However, driving is not allowed with a disabled suspension resolver in the current version of ﬂight
+software (R12). So a ﬂight software update is currently under development that includes a ﬁx to enable driving while a
+suspension resolver is disabled. TRCTL uses suspension resolver and IMU data to estimate the contact angle of each
+wheel with the terrain. Therefore, TRCTL would also have to be disabled if a suspension resolver were disabled.
+Mobility Heater or Thermometer Failure Actuators contain wet lubricants that ideally achieve a temperature above
+-55◦Celsius prior to actuation. There are Platinum Resistance Thermometers (PRTs) on each mobility actuator and
+closed-loop mobility heating is performed for all drive actuators based on a single drive PRT, and for all steer actuators
+based on a single steer PRT. PRT data for each mobility actuator are recorded in downlink telemetry for the periods
+when the prime RCE is powered, and at low rates while the rover is asleep. The operations team relies on temperature
+models to predict the duration of pre-heating needed for scheduling a drive.
+Curiosity has two mobility heater circuits. If the prime mobility heater circuit were no longer functional, the operations
+team would need to command a swap from the prime Power and Analog Module (PAM) to the backup PAM to enable
+use of the backup mobility heater circuit. However, if both the prime and backup mobility heater circuits are no longer
+functional, there are three potential options for continuing mobility during extended mission:
+1. The operations team could schedule driving only during periods when the temperature models predict the
+mobility actuators are at a safe temperature without heating, or,
+2. Change actuator temperature fault protection limits, drive with the actuators cold, and accept the risks, or,
+3. Prior to driving, attempt to use the mobility actuators in a way that generates heat without motion to pre-heat
+the mobility actuators.
+All three options would result in shorter drive times. A risk assessment would need to be performed for the second
+option and a test campaign would need to be performed to determine the feasibility of the third option. If one of the two
+mobility PRTs used for closed-loop control is no longer functional, separate PRTs located on other mobility actuators
+Table 11: Summary of mobility risks and mitigation. Risks are listed from high to low likelihood of occurrence.
+Risks to Mobility Worst Case
+Impact
+Likelihood Mitigations
+Power reduction may limit
+drive time
+Medium High Future software improvements are planned to in-
+crease the VO Full drive rate, the drive frequency
+can be adjusted
+Rover driving on unsafe
+terrain
+High Medium Strategic route planning, tactical RP route selec-
+tion, AutoNav, keep-in and keep-out zones, fault
+protection
+Drive or steer actuator
+hardware failure
+Medium Medium Ability to turn and drive with a single disabled
+WSA has been veriﬁed
+RCE or ECAM failure High Medium Switch to backup RCE/ECAMs. However, due to
+failing NAND on backup RCE, mobility is not cur-
+rently supported with ﬁle system moved to NOR.
+Wheel sinkage can lead to
+embedding (e.g., MER
+Spirit)
+High Medium Wheel slip fault protection, VO Auto, tactical RP
+route selection, post-drive assessment of wheel im-
+ages
+Rover driving under an
+unknown unsafe condition
+High Low Fault protection
+Wheel damage may limit
+driving. A shard of wheel
+skin may cut into a drive
+actuator cable, causing the
+actuator to be unusable
+High Low Tactical RP route selection. TRCTL has reduced
+overall wheel wear. Continue to assess wheel dam-
+age every 500 meters. Once most grousers on a
+wheel are broken, consider shedding inner portion.
+Wheel entrapment High Low Fault protection, tactical RP route selection, sim-
+ulation of candidate drives (during planning and
+fault recovery).
+Rock wedged between two
+wheels
+High Low Tactical RP route selection, AutoNav, keep-in and
+keep-out zones, fault protection
+Rover tip over High Low Rocker-Bogie suspension keeps rover body rela-
+tively level when driving over rocks. Fault protec-
+tion limits rover tilt.
+Rover high centering High Low Strategic route planning, tactical RP route selec-
+tion, AutoNav, wheel slip fault protection.
+Suspension hardware failure High Low Annual inspection of CDP. Future software update
+will include a ﬁx to enable driving with a disabled
+suspension resolver. However, TRCTL is not avail-
+able with a disabled suspension resolver.
+Mobility heater or PRT
+failure may limit drive time
+High Low Swap to the backup PAM to use the backup mobil-
+ity heater circuit and different drive and steer PRTs.
+IMU hardware failure Medium Low VO can be used to update rover position and atti-
+tude, but there will be additional mobility impacts
+(e.g., increased uncertainty) that will require sig-
+niﬁcant changes to how drives are planned.
+Loss of NavCam calibration
+(affects VO and AutoNav) or
+HazCam calibration (affects
+AutoNav)
+Medium Low Update/upload camera model parameters (unless
+mount is loose, allowing camera motion)
+could be used, and in the worst case the operations team could command a swap to the backup PAM, allowing B-side
+mobility PRTs to be used for control. A software ﬁx would be required to allow B-side PRTs to be used for closed-loop
+control while keeping the A-side PAM prime, but would allow driving to continue.
+IMU Failure VO is currently conﬁgured to update only the rover position, while IMU sensors provide rover attitude
+real-time updates and undergo bias-removing recalibrations using the imaging-based Sun detection and accelerometer-
+based gravity-vector detection. But VO actually generates a full 6-DOF pose estimate internally, so if an IMU hardware
+failure occurs, VO could be used to also update the rover attitude. However, to operate in that conﬁguration would
+require signiﬁcant changes to how drives are planned, due to the increased positional uncertainty that would occur.
+Instead of 8 Hz attitude conﬁrmation, we would only receive updates once per drive step. And turn-in-place commands
+would no longer close the loop on rover heading to determine when to stop: without the IMU, turn-in-place would
+be open loop and could terminate far from the commanded heading, particularly if there is signiﬁcant wheel slip. In
+addition, TRCTL would not be available without IMU measurements.
+Camera Calibration Curiosity and the MER rovers have relied on Earth-based camera calibration to understand the
+geometric properties of ECAM lenses during onboard image processing. If an ECAM loses calibration, that could
+preclude the use of onboard autonomous imaging behaviors such as VO (if it is a NavCam) and Hazard Detection
+during mobility. For example, after the sol 200 anomaly caused a swap from RCE-A to RCE-B and we were forced to
+use the backup cameras, it was discovered that RCE-B NavCam stereo disparity was sparser than usual, preventing the
+use of onboard imaging autonomy. Analysis determined that the RCE-B NavCam camera models had inaccuracies in
+pointing that varied predictably according to the camera temperature. To mitigate that issue, new camera models were
+generated for each degree between -60 to +20◦C and sent to the rover, along with new software and control sequences
+that updated the system to choose the appropriate model dynamically, based on the current camera temperature. The
+new strategy restored VO, Guarded, and AutoNav driving modes to the operations team for use on RCE-B starting
+on sol 335, and that strategy was later built directly into the next version of FSW (R11). In the future, if a physical
+disturbance happens to an ECAM, or an ECAM mount comes loose, sensor recalibration may also become necessary,
+and has already been shown to be feasible.
+11 Summary
+In this paper, we reviewed the performance of Curiosity’s mobility subsystem and the challenges of operating it during
+the ﬁrst seven years of its surface mission in Gale Crater. We reviewed the mobility modes of operation, described the
+current condition of the mobility hardware, and gave detailed breakdowns of all of Curiosity’s drive failures, including
+descriptions of the rover’s fault protection processes that triggered them.
+At the seven year mark, Curiosity’s total cumulative odometry was 21,318.5 meters, exceeding the design goal of 20
+km. Curiosity has attempted 738 planned drives; 622 (84.3%) successfully completed with the rover arriving at the
+goal position and 116 (15.7%) did not run to completion. There are 24 types of fault protection that caused the 116
+drives to stop early. Sixteen types of fault protection were mobility related and caused 63 of the drive faults. Eight
+types of fault protection were not mobility related and caused 53 of the drive faults. Of the 116 drives that did not
+run to completion, 29 drive faults were expected and 87 were unexpected. Despite 15.7% of the attempted drives not
+running to completion, 91.7% of the planned odometry for the attempted drives was achieved. The 8.3% reduction in
+odometry has been an acceptable cost, given the beneﬁts of preserving the mobility subsystem.
+Comparing Curiosity and Opportunity odometry and elevation after seven years (on each mission’s sol 2488), Curiosity
+has driven 5.34 km less than Opportunity, but has climbed 277.3 meters higher in elevation. Although the odometry
+and elevation comparisons between Curiosity and Opportunity are of historic interest, mobility choices are guided by
+each mission’s long term strategic science plan and are subject to changes due to near term science objectives and
+engineering constraints arising from terrain features not evident when planning from orbital images.
+Since the use of TRCTL was approved for nominal use on sol 1678, there has been an overall reduction in the wheel
+damage rate. In addition, the grouser break rate continues to be lower than the predicted rate. Although a signiﬁcant
+percentage of wheel skin is cracked on the middle and left front wheel, and there are two grouser breaks on the LM
+wheel and one on the RM wheel, the current expectation is power will become a limiting factor to driving before wheel
+damage does. Although drive actuators have exceeded 1x Qualiﬁed Life of 15,000 revolutions, a WSA was tested to
+2x Qualiﬁed Life at JPL, disassembled, and inspected and no failure was observed.
+We have summarized the known risks to continued mobility success and their mitigations. The risks to mobility that
+have the highest likelihood of occurrence are a reduction in available power that may limit the time available for
+driving, Curiosity driving on unsafe terrain, a drive or steer actuator failure, an RCE-B failure, and progressive wheel
+sinkage which can lead to wheel embedding. Curiosity has already driven on unsafe terrain (which caused wheel
+damage) and has already experienced transient RCE failures. An actuator failure and wheel embedding has occurred
+on MER. Key mitigations to these events include selecting cautious strategic and tactical routes, deploying suitable
+keep-in and keep-out zones on each drive, using AutoNav to safely explore unknown terrain, employing multiple wheel
+slip fault protection capabilities, rigorously monitoring wheel sinkage, and integrating future software improvements
+to increase the VO Full drive rate.
+Mars remains a harsh operational environment. The MSL Mobility subsystem team will continue to monitor Cu-
+riosity’s progress and develop ground support tools, anomaly diagnostics, recovery strategies, and ﬂight software
+improvements as we continue to explore as-yet-unseen terrains while summiting the slopes of Mount Sharp.
+Acknowledgments
+The research described in this paper was performed at the Jet Propulsion Laboratory, California Institute of Technol-
+ogy, under contract with the National Aeronautics and Space Administration. The authors would like to thank the Mars
+Science Laboratory Program for supporting this research. Thanks to Kurt Gonter for discussions about thermal fault
+protection, Matt Heverly for discussions regarding rock-induced wheel damage, mobility in sand, and actuator/sensor
+speciﬁcations, and Jaret Matthews for images of rock-induced wheel damage. U.S. Government sponsorship is ac-
+knowledged.
+References
+Angelova, A., Matthies, L., Helmick, D., and Perona, P. (2007). Learning and prediction of slip from visual informa-
+tion. Journal of Field Robotics, 24:205–231.
+Arvidson, R., DeGrosse, P., Grotzinger, J., Heverly, M., Shechet, J., Moreland, S., Newby, M., Stein, N., Steffy, A.,
+Zhou, F., Zastrow, A., Vasavada, A., Fraeman, A., and Stilly, E. (2017a). Relating geologic units and mobility
+system kinematics contributing to Curiosity wheel damage at Gale Crater, Mars. Journal of Terramechanics ,
+73:73–93.
+Arvidson, R., Iagnemma, K., Maimone, M., Fraeman, A., Zhou, F., Heverly, M., Bellutta, P., Rubin, D., Stein, N.,
+Grotzinger, J., and Vasavada, A. (2017b). Mars Science Laboratory Curiosity rover megaripple crossings up to
+sol 710 in Gale Crater. Journal of Field Robotics, 34(3):495–518.
+Bickler, D. (1998). Roving over Mars. ASME Mechanical Engineering Magazine, 120(4):73–77.
+Biesiadecki, J. J. and Maimone, M. W. (2006). The Mars Exploration Rover surface mobility ﬂight software: Driving
+ambition. In IEEE Aerospace Conference, volume 5, pages 1–15, Big Sky, Montana, USA.
+Carsten, J., Rankin, A., Ferguson, D., and Stentz, A. (2009). Global planning on the Mars Exploration Rovers:
+Software integration and surface testing. Journal of Field Robotics, 26:337–357.
+Ferguson, D. and Stentz, A. (2006). Using interpolation to improve path planning: The Field D* algorithm. Journal
+of Field Robotics, 23(2):79–101.
+Gonzalez, R. and Iagnemma, K. (2017). Slippage estimation and compensation for planetary exploration rovers. state
+of the art and future challenges. Journal of Field Robotics, 35:564–577.
+Graser, E., McGill, S., Rankin, A., and Bielawiec, A. (2020). Rimmed wheel performance on the Mars Science
+Laboratory Scarecrow rover. In IEEE Aerospace Conference, pages 1–12, Big Sky, Montana, USA.
+Grotzinger, J., Crisp, J., Vasavada, A., Anderson, R., Baker, C., Barry, R., Blake, D., Conrad, P., Edgett, K., Ferdowski,
+B., Gellert, R., Gilbert, J., Golombek, M., G ´omez-Elvira, J., Hassler, D., Jandura, L., Litvak, M., Mahaffy, P.,
+Maki, J., Meyer, M., Malin, M., Mitrofanov, I., Simmonds, J., Vaniman, D., Welch, R., and Wiens, R. (2012).
+Mars Science Laboratory mission and science investigation. Space Science Reviews, 170:5 – 56.
+Haggart, S. and Waydo, J. (2008). The mobility system wheel design for NASA’s Mars Science Laboratory mission.
+In 11th European International Society Terrain V ehicle Systems Meeting, Torino, Italy.
+Harrington, B. and V oorhees, C. (2004). The challenges of designing the rocker-bogie suspension for the Mars Explo-
+ration Rover. In 37th Aerospace Mechanism Symposium, Galviston, Texas, USA.
+Heverly, M., Matthews, J., Lin, J., Fuller, D., Maimone, M., Biesiadecki, J., and Leichty, J. (2013). Traverse perfor-
+mance characterization for the Mars Science Laboratory rover. Journal of Field Robotics, 30(6):835–846.
+Johnson, A., Goldberg, S., Cheng, Y ., and Matthies, L. (2008). Robust and efﬁcient stereo feature tracking for visual
+odometry. In International Conference on Robotics and Automation , pages 39–46, Pasadena, CA, USA.
+Kim, W. S., Nesnas, I. A., Bajracharya, M., Madison, R., Ansar, A. I., Steele, R. D., Biesiadecki, J. J., and Ali, K. S.
+(2009). Targeted driving using visual tracking on mars: From research to ﬂight. Journal of Field Robotics ,
+26:243–263.
+Maimone, M., Cheng, Y ., and Matthies, L. (2007a). Two years of visual odometry on the Mars Exploration Rovers.
+Journal of Field Robotics, 24:169–186.
+Maimone, M., Maxwell, S., Biesiadecki, J., and Algermissen, S. (2018). RP-check: An architecture for spaceﬂight
+command sequence validation. In IEEE Aerospace Conference, pages 1–10, Big Sky, Montana, USA.
+Maimone, M. W., Leger, P. C., and Biesiadecki, J. J. (2007b). Overview of the Mars Exploration Rovers’ autonomous
+mobility and vision capabilities. In International Conference on Robotics and Automation , Rome, Italy.
+Maki, J., Thiessen, D., Pourangi, A., Kobzeff, P., Litwin, T., Scherr, L., Elliott, S., Dingizian, A., and Maimone, M.
+(2012). The Mars Science Laboratory engineering cameras. Space Science Reviews, 170:1–17.
+Ono, M., Fuchs, T. J., Steffy, A., Maimone, M., and Yen, J. (2015). Risk-aware planetary rover operation: Autonomous
+terrain classiﬁcation and path planning. In IEEE Aerospace Conference, pages 1–10, Big Sky, Montana, USA.
+Rankin, A., Maimone, M., Biesiadecki, J., Patel, N., Levine, D., and Toupet, O. (2020). Driving Curiosity: Mars rover
+mobility trends duing the ﬁrst seven years. In IEEE Aerospace Conference, pages 1–19, Big Sky, Montana, USA.
+Rothrock, B., Kennedy, R., Cunningham, C., Papon, J., Heverly, M., and Ono, M. (2016). Spoc: Deep learning-based
+terrain classiﬁcation for mars rover missions. In AIAA Space Conference, pages 1–12.
+Toupet, O., Biesiadecki, J., Rankin, A., Steffy, A., Meirion-Grifﬁth, G., Levine, D., Schadegg, M., and Maimone, M.
+(2020). Terrain-adaptive wheel speed control on the Curiosity Mars rover: Algorithm and ﬂight results. Journal
+of Field Robotics, 37(5):699–728.

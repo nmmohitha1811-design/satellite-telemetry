@@ -1,0 +1,21 @@
+# Virtual environments
+telemanom/venv/
+telemanom/.venv/
+rag-copilot/venv/
+rag-copilot/.venv/
+
+# NASA telemetry data (large, regenerated via download scripts)
+telemanom/data/
+telemanom/data_raw/
+telemanom/*.zip
+
+# Raw PDFs (large, regenerated via download_docs.py)
+rag-copilot/documents/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS/editor clutter
+.DS_Store
+Thumbs.db
