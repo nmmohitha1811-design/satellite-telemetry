@@ -19,3 +19,6 @@ __pycache__/
 # OS/editor clutter
 .DS_Store
 Thumbs.db
+
+agent-copilot/venv/
+agent-copilot/.venv/
