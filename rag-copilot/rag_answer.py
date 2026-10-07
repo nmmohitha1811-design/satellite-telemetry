@@ -8,10 +8,12 @@ SIMILARITY_THRESHOLD = 0.35  # below this, we don't trust the match enough to an
 print("Loading embedding model and index...")
 embed_model = SentenceTransformer('all-MiniLM-L6-v2')
 
-with open("chunks.json", "r", encoding="utf-8") as f:
+RAG_COPILOT_DIR = r"C:\Users\ADMIN\space-copilot\rag-copilot"
+
+with open(f"{RAG_COPILOT_DIR}/chunks.json", "r", encoding="utf-8") as f:
     chunks = json.load(f)
 
-embeddings = np.load("chunk_embeddings.npy")
+embeddings = np.load(f"{RAG_COPILOT_DIR}/chunk_embeddings.npy")
 
 
 def retrieve(query, top_k=3):

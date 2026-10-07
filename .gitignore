@@ -22,3 +22,5 @@ Thumbs.db
 
 agent-copilot/venv/
 agent-copilot/.venv/
+agent-copilot/.streamlit/
+agent-copilot/__pycache__/
